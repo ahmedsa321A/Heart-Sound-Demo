@@ -44,7 +44,7 @@ const protect = async (req, res, next) => {
         if (error.name === 'TokenExpiredError') {
             return res.status(401).json({ 
                 msg: 'Token expired',
-                code: 'TOKEN_EXPIRED' // Frontend knows to call /refresh
+                code: 'TOKEN_EXPIRED' // Frontend calls /refresh delwa2tty
             });
         }
 

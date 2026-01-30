@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import User from '../DB/User.js';
+import BlacklistedToken from '../DB/blackListToken.model.js';
 
 const protect = async (req, res, next) => {
     let token;
@@ -9,6 +10,11 @@ const protect = async (req, res, next) => {
             token = req.cookies.token;
 
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+               const blacklisted = await BlacklistedToken.findOne({ jti: decoded.jti });
+        if (blacklisted) {
+            return res.status(401).json({ msg: 'Token revoked' });
+        }
 
 
             req.user = await User.findById(decoded.user.id).select('-password');

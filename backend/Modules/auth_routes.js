@@ -1,10 +1,15 @@
 import express from 'express';
 const router = express.Router();
 import { register, verifyOTP, login, logout } from '../controllers/authController.js';
+import protectRefresh from '../middleware/refresh.middleware.js';
+import { refresh } from '../controllers/authController.js';
 
 router.post('/register', register);
 router.post('/verify', verifyOTP);
 router.post('/login', login);
 router.post('/logout', logout);
+router.post('/refresh', protectRefresh, refresh);
+
+
 
 export default router;

@@ -21,7 +21,6 @@ export const register = async (req, res) => {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const otpExpires = Date.now() + 10 * 60 * 1000; // Expires in 10 mins
 
-        const hashPassword=bcrypt.hashSync(password,+process.env.SALT_ROUNDS);
 
 
 
@@ -29,7 +28,7 @@ export const register = async (req, res) => {
             user = new User({
                 fullName,
                 email,
-                hashPassword,
+                password,
                 age,
                 gender,
                 otp,
@@ -38,7 +37,7 @@ export const register = async (req, res) => {
         } else {
             user.otp = otp;
             user.otpExpires = otpExpires;
-            user.password = hashPassword;
+            user.password = password; 
             user.fullName = fullName;
         }
 

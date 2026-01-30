@@ -1,17 +1,16 @@
 // utils/generateTokens.js
 import jwt from 'jsonwebtoken';
 
+import { v4 as uuidv4 } from 'uuid';
+
 export const generateAccessToken = (userId) => {
     return jwt.sign(
         {
-            user: {
-                id: userId
-            }
+            user: { id: userId },
+            jti: uuidv4()  // ADD THIS
         },
         process.env.JWT_SECRET,
-        {
-            expiresIn: '15m'
-        }
+        { expiresIn: '15m' }
     );
 };
 

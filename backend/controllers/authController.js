@@ -21,11 +21,15 @@ export const register = async (req, res) => {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const otpExpires = Date.now() + 10 * 60 * 1000; // Expires in 10 mins
 
+        const hashPassword=bcrypt.hashSync(password,+process.env.SALT_ROUNDS);
+
+
+
         if (!user) {
             user = new User({
                 fullName,
                 email,
-                password,
+                hashPassword,
                 age,
                 gender,
                 otp,
@@ -34,7 +38,7 @@ export const register = async (req, res) => {
         } else {
             user.otp = otp;
             user.otpExpires = otpExpires;
-            user.password = password;
+            user.password = hashPassword;
             user.fullName = fullName;
         }
 
@@ -184,24 +188,37 @@ export const login = async (req, res) => {
 // @desc    Logout User & Clear Cookie
 // @route   POST /api/auth/logout
 export const logout = async (req, res) => {
-    const token = req.cookies.token;
-    if (token) {
-        const decoded = jwt.decode(token);
+    try {
+        const token = req.cookies.token;
+        
+        if (token) {
+            try {
+                const decoded = jwt.decode(token);
+                if (decoded && decoded.jti) {
+                    await BlacklistedToken.create({
+                        jti: decoded.jti,
+                        expiresAt: new Date(decoded.exp * 1000)
+                    });
+                }
+            } catch (err) {
+                console.error('Token decode error:', err);
+            }
+        }
 
-        await BlacklistedToken.create({
-            jti: decoded.jti,
-            expiresAt: new Date(decoded.exp * 1000)
-        });
+        // Delete all refresh tokens for this user
+        if (req.user && req.user.id) {
+            await RefreshToken.deleteMany({ user: req.user.id });
+        }
+
+        res.clearCookie('token');
+        res.clearCookie('refreshToken');
+
+        res.json({ msg: 'Logged out' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ msg: 'Logout failed' });
     }
-
-    await RefreshToken.deleteMany({ user: req.user.id });
-
-    res.clearCookie('token');
-    res.clearCookie('refreshToken');
-
-    res.json({ msg: 'Logged out' });
 };
-
 
 export const refresh = async (req, res) => {
     try {

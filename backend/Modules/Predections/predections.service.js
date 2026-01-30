@@ -8,7 +8,7 @@ import { bucket } from '../DB/db.connection.js'; // Your GridFS bucket
 
 export const createPrediction = async (req, res) => {
     try {
-        const userId = req.userid;
+        const userId = req.user._id
         const audioId = req.file.id;
 
         // 1. Get the Raw Audio from GridFS as a Stream

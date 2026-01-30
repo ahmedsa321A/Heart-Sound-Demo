@@ -4,7 +4,7 @@ const predictionSchema = new mongoose.Schema({
     patientId: {
         type: mongoose.Schema.Types.ObjectId,
         required: true,
-        ref: 'Patient'
+        ref: 'User' // Assuming there is a User model
     },
     audioId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -13,6 +13,11 @@ const predictionSchema = new mongoose.Schema({
     },
     predictionResult: {
         type: String,
+        required: true
+    },
+
+    predictionScore: {
+        type: Number,
         required: true
     },
     createdAt: {

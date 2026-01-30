@@ -63,7 +63,9 @@ const FormSelect: React.FC<FormSelectProps> = ({
             ${borderClasses}
           `}
                 >
-                    <Select.Value placeholder={`Select ${label}`} />
+                    <Select.Value placeholder={`Select ${label}`}>
+                        {value ? options.find(o => o.value === value)?.label : <span className="text-gray-400 opacity-70">Select {label}</span>}
+                    </Select.Value>
                     <Select.Icon>
                         <ChevronDown size={16} />
                     </Select.Icon>

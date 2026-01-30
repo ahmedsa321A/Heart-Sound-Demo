@@ -25,6 +25,8 @@ export function RegisterStep1() {
     });
     const [errors, setErrors] = useState<AuthErrors>({});
 
+    const [showPassword, setShowPassword] = useState(false);
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { target: { name: string; value: string } }) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
@@ -43,7 +45,11 @@ export function RegisterStep1() {
             setErrors(newErrors);
             return;
         }
-        dispatch(setRegistrationData(formData));
+        const dataToDispatch = {
+            ...formData,
+            age: formData.age ? Number(formData.age) : undefined
+        };
+        dispatch(setRegistrationData(dataToDispatch));
 
         console.log(formData);
         navigate('/register/step-2');
@@ -105,6 +111,8 @@ export function RegisterStep1() {
                     onChange={handleChange}
                     placeholder="••••••••"
                     error={errors.password}
+                    showPassword={showPassword}
+                    onTogglePassword={() => setShowPassword(!showPassword)}
                 />
                 {!errors.password && <p className="text-sm text-gray-500 mt-1">{t('auth.passwordHint')}</p>}
 

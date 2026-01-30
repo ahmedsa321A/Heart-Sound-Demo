@@ -1,18 +1,14 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import { audioService } from '@/services/audioService';
 
-export type RecordingStatus = 'idle' | 'recording' | 'review' | 'analyzing' | 'complete' | 'error';
+import { AnalysisResponse } from '@/services/apiTypes';
 
-export interface AnalysisResult {
-    diagnosis: string;
-    confidence: number;
-    details: string;
-}
+export type RecordingStatus = 'idle' | 'recording' | 'review' | 'analyzing' | 'complete' | 'error';
 
 interface RecordingState {
     status: RecordingStatus;
     audioUrl: string | null;
-    analysisResult: AnalysisResult | null;
+    analysisResult: AnalysisResponse | null;
     error: string | null;
 }
 
@@ -45,13 +41,13 @@ const recordingSlice = createSlice({
         },
         stopRecording: (state, action: PayloadAction<string>) => {
             state.status = 'review';
-            state.audioUrl = action.payload; 
+            state.audioUrl = action.payload;
         },
         startAnalyzing: (state) => {
             state.status = 'analyzing';
             state.error = null;
         },
-        setAnalysisResult: (state, action: PayloadAction<AnalysisResult>) => {
+        setAnalysisResult: (state, action: PayloadAction<AnalysisResponse>) => {
             state.status = 'complete';
             state.analysisResult = action.payload;
         },

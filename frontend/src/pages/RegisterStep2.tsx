@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useAppDispatch, useAppSelector } from '@/store';
 import { registerUser } from '@/store/slices/authSlice';
 import { Loader } from '@/components/ui/loader';
+import { RegisterData } from '@/services/apiTypes';
 
 import { FormRadioGroup } from '@/components/ui/form-radio-group';
 import { FormCheckboxGroup } from '@/components/ui/form-checkbox-group';
@@ -55,12 +56,12 @@ export function RegisterStep2() {
             return;
         }
 
-        const fullData = { ...registrationData, ...formData };
+        const fullData = { ...registrationData, ...formData } as RegisterData;
         console.log(fullData);
-        
+
         const resultAction = await dispatch(registerUser(fullData));
         if (registerUser.fulfilled.match(resultAction)) {
-            navigate('/dashboard');
+            navigate('/verify-otp');
         }
     };
 

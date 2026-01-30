@@ -59,28 +59,28 @@ export const register = async (req, res) => {
         );
 
 
-console.log(`DEV MODE OTP: ${otp}`);
+        console.log(`DEV MODE OTP: ${otp}`);
 
 
-const message = `Your verification code for CardioLens is: ${otp}\n\nIt expires in 10 minutes.`;
+        const message = `Your verification code for CardioLens is: ${otp}\n\nIt expires in 10 minutes.`;
 
-try {
-    await sendEmail({
-        email: user.email,
-        subject: 'CardioLens Verification Code',
-        message
-    });
+        try {
+            await sendEmail({
+                email: user.email,
+                subject: 'CardioLens Verification Code',
+                message
+            });
 
-    res.status(200).json({ msg: 'Email sent. Please verify OTP.' });
-} catch (err) {
-    console.error("Email sending failed (expected without valid credentials):", err.message);
-    res.status(200).json({ msg: 'Email failed (check server console for OTP), but user created.' });
-}
+            res.status(200).json({ msg: 'Email sent. Please verify OTP.' });
+        } catch (err) {
+            console.error("Email sending failed (expected without valid credentials):", err.message);
+            res.status(200).json({ msg: 'Email failed (check server console for OTP), but user created.' });
+        }
 
     } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
-}
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
 };
 
 export const verifyOTP = async (req, res) => {
@@ -173,11 +173,27 @@ export const login = async (req, res) => {
 
 // @desc    Logout User & Clear Cookie
 // @route   POST /api/auth/logout
-export const logout = (req, res) => {
+export const logout = async (req, res) => {
     res.cookie('token', 'none', {
         expires: new Date(Date.now() + 10 * 1000),
-        httpOnly: true,
+        httpOnly: true
     });
 
     res.status(200).json({ success: true, msg: 'User logged out' });
+};
+
+// @route   GET /api/auth/me
+export const getMe = async (req, res) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ success: false, msg: 'Not authorized' });
+        }
+        res.status(200).json({
+            success: true,
+            data: req.user
+        });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ success: false, msg: 'Server error' });
+    }
 };

@@ -1,74 +1,36 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 
-// Types
-export interface User {
-    id: string;
-    email: string;
-    fullName: string;
-    age: number | string;
-    gender: string;
-    familyHistory?: string;
-    hypertension?: string;
-    diabetes?: string;
-    chronicCardiac?: string[];
-    renalPathologies?: string;
-}
-
-export interface RegistrationData {
-    fullName?: string;
-    email?: string;
-    password?: string;
-    age?: string | number;
-    gender?: string;
-    familyHistory?: string;
-    hypertension?: string;
-    diabetes?: string;
-    chronicCardiac?: string[];
-    renalPathologies?: string;
-}
+import { authService } from '@/services/authService';
+import { profileService } from '@/services/profileService';
+import { User, RegisterData, LoginCredentials } from '@/services/apiTypes';
 
 interface AuthState {
     user: User | null;
     token: string | null;
     isLoading: boolean;
     error: string | null;
-    registrationData: RegistrationData | null;
+    registrationData: Partial<RegisterData> | null;
 }
 
 // Initial State
 const initialState: AuthState = {
     user: null,
-    token: localStorage.getItem('token'),
+    token: null,
     isLoading: false,
     error: null,
     registrationData: null,
 };
 
-// Async Thunks
-// Login
+
 export const loginUser = createAsyncThunk(
     'auth/login',
-    async (credentials: { email: string; password: string }, { rejectWithValue }) => {
+    async (credentials: LoginCredentials, { rejectWithValue }) => {
         try {
-            // Mock API call for now since we don't have a backend
-            // const response = await api.post('/auth/login', credentials);
-            // return response.data;
-
-            // Simulating delay and success
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            const mockResponse = {
-                user: {
-                    id: '1',
-                    email: credentials.email,
-                    fullName: 'Demo User',
-                    age: 30,
-                    gender: 'male',
-                    name: 'User' // Keeping name for backward compatibility if needed, though strictly not in interface
-                },
-                token: 'mock-jwt-token'
-            };
-            return mockResponse;
-
+            const response = await authService.login(credentials);
+            if (!response.success) {
+                return rejectWithValue(response.msg || 'Login failed');
+            }
+            return response;
         } catch (error: any) {
             return rejectWithValue(error.response?.data?.message || 'Login failed');
         }
@@ -78,27 +40,30 @@ export const loginUser = createAsyncThunk(
 // Register
 export const registerUser = createAsyncThunk(
     'auth/register',
-    async (userData: RegistrationData, { rejectWithValue }) => {
+    async (userData: RegisterData, { rejectWithValue }) => {
         try {
-            // const response = await api.post('/auth/register', userData);
-            // return response.data;
-
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            const newUser: User = {
-                id: '2',
-                email: userData.email || '',
-                fullName: userData.fullName || 'New User',
-                age: userData.age || 0,
-                gender: userData.gender || 'unknown',
-                familyHistory: userData.familyHistory,
-                hypertension: userData.hypertension,
-                diabetes: userData.diabetes,
-                chronicCardiac: userData.chronicCardiac,
-                renalPathologies: userData.renalPathologies
-            };
-            return { user: newUser, token: 'mock-jwt-token-reg' };
+            const response = await authService.register(userData);
+            if (!response.success) {
+                return rejectWithValue(response.msg || 'Registration failed');
+            }
+            return response;
         } catch (error: any) {
             return rejectWithValue(error.response?.data?.message || 'Registration failed');
+        }
+    }
+);
+
+export const verifyOTP = createAsyncThunk(
+    'auth/verifyOTP',
+    async (data: { email: string; otp: string }, { rejectWithValue }) => {
+        try {
+            const response = await authService.verifyOTP(data);
+            if (!response.success) {
+                return rejectWithValue(response.msg || 'Verification failed');
+            }
+            return response;
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data?.message || 'Verification failed');
         }
     }
 );
@@ -108,9 +73,8 @@ export const updateProfile = createAsyncThunk(
     'auth/updateProfile',
     async (userData: Partial<User>, { rejectWithValue }) => {
         try {
-            // Mock API call
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            return userData;
+            const response = await profileService.updateProfile(userData as any);
+            return response;
         } catch (error: any) {
             return rejectWithValue(error.response?.data?.message || 'Update failed');
         }
@@ -131,6 +95,22 @@ export const forgotPassword = createAsyncThunk(
     }
 );
 
+// Check Auth Status
+export const checkAuth = createAsyncThunk(
+    'auth/checkAuth',
+    async (_, { rejectWithValue }) => {
+        try {
+            const user = await authService.getCurrentUser();
+            if (!user) {
+                return rejectWithValue('Not authenticated');
+            }
+            return user;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Failed to check auth');
+        }
+    }
+);
+
 const authSlice = createSlice({
     name: 'auth',
     initialState,
@@ -138,13 +118,12 @@ const authSlice = createSlice({
         logout: (state) => {
             state.user = null;
             state.token = null;
-            localStorage.removeItem('token');
             state.registrationData = null;
         },
         clearError: (state) => {
             state.error = null;
         },
-        setRegistrationData: (state, action: PayloadAction<RegistrationData>) => {
+        setRegistrationData: (state, action: PayloadAction<Partial<RegisterData>>) => {
             state.registrationData = { ...state.registrationData, ...action.payload };
         },
     },
@@ -159,7 +138,6 @@ const authSlice = createSlice({
                 state.isLoading = false;
                 state.user = action.payload.user;
                 state.token = action.payload.token;
-                localStorage.setItem('token', action.payload.token);
             })
             .addCase(loginUser.rejected, (state, action) => {
                 state.isLoading = false;
@@ -172,13 +150,24 @@ const authSlice = createSlice({
                 state.isLoading = true;
                 state.error = null;
             })
-            .addCase(registerUser.fulfilled, (state, action) => {
+            .addCase(registerUser.fulfilled, (state) => {
+                state.isLoading = false;
+            })
+            .addCase(registerUser.rejected, (state, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
+            })
+            // Verify OTP
+            .addCase(verifyOTP.pending, (state) => {
+                state.isLoading = true;
+                state.error = null;
+            })
+            .addCase(verifyOTP.fulfilled, (state, action) => {
                 state.isLoading = false;
                 state.user = action.payload.user;
                 state.token = action.payload.token;
-                localStorage.setItem('token', action.payload.token);
             })
-            .addCase(registerUser.rejected, (state, action) => {
+            .addCase(verifyOTP.rejected, (state, action) => {
                 state.isLoading = false;
                 state.error = action.payload as string;
             })
@@ -208,6 +197,18 @@ const authSlice = createSlice({
             .addCase(forgotPassword.rejected, (state, action) => {
                 state.isLoading = false;
                 state.error = action.payload as string;
+            })
+            // Check Auth
+            .addCase(checkAuth.pending, (state) => {
+                state.isLoading = true;
+            })
+            .addCase(checkAuth.fulfilled, (state, action) => {
+                state.isLoading = false;
+                state.user = action.payload;
+            })
+            .addCase(checkAuth.rejected, (state) => {
+                state.isLoading = false;
+                state.user = null;
             });
     },
 });

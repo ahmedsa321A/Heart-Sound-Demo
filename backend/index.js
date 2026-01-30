@@ -1,8 +1,18 @@
 import 'dotenv/config';
 import express from 'express';
 import dbConnection from './DB/db.connection.js';
+import cors from 'cors';
+
+import cookieParser from 'cookie-parser';
+
 const app = express();
 
+app.use(cors({
+    origin: "http://localhost:5173",
+    credentials: true
+}));
+
+app.use(cookieParser());
 dbConnection();
 
 app.use(express.json());
@@ -17,5 +27,11 @@ app.use("/auth", authRouter);
 
 
 app.listen(process.env.PORT, () => {
-    console.log('Server is running on port 3000');
+    console.log(`Server is running on port ${process.env.PORT}`);
+});
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ success: false, msg: 'Something went wrong!', error: err.message });
 });

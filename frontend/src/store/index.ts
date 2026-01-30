@@ -8,14 +8,6 @@ export const store = configureStore({
         auth: authReducer,
         recording: recordingReducer,
     },
-    middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware({
-            serializableCheck: {
-                // Ignore these paths in the state for serializability checks
-                // if we decide to store non-serializable data, but currently we are storing strings/numbers.
-                // Blob URLs are strings, so they are fine.
-            },
-        }),
 });
 
 // Infer the `RootState` and `AppDispatch` types from the store itself

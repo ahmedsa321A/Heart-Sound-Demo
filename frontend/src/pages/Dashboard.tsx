@@ -1,15 +1,18 @@
-import { useState, useEffect, useRef } from 'react'; // 🔧 added useRef
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Mic, Square, Loader, CheckCircle, AlertCircle, Activity, FileText } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Button } from '@/components/ui/button';
 import { useAppDispatch, useAppSelector } from '@/store';
-import { startRecording, stopRecording, startAnalyzing, setAnalysisResult, resetRecording } from '@/store/slices/recordingSlice';
+import { startRecording, stopRecording, resetRecording, analyzeAudio, setRecordingError } from '@/store/slices/recordingSlice';
 import instructionImage from '@/assets/instruction.jpg';
+import { WaveformPlayer } from '@/components/ui/waveform-player';
+import { audioBufferToWav } from '@/utils/audioUtils';
+import AlertCard from '@/components/ui/alert-card';
 
 export function Dashboard() {
     const dispatch = useAppDispatch();
-    const { status, analysisResult, audioUrl } = useAppSelector((state) => state.recording);
+    const { status, analysisResult, audioUrl, error } = useAppSelector((state) => state.recording);
     const { user } = useAppSelector((state) => state.auth);
     const { t } = useTranslation();
     const [recordingTime, setRecordingTime] = useState(0);
@@ -21,19 +24,15 @@ export function Dashboard() {
         let timer: ReturnType<typeof setInterval>;
         if (status === 'recording') {
             timer = setInterval(() => {
-                setRecordingTime((prev) => {
-                    if (prev >= 30) {
-                        handleStop();
-                        return 30;
-                    }
-                    return prev + 1;
-                });
+                setRecordingTime((prev) => prev + 1);
             }, 1000);
         } else {
             setRecordingTime(0);
         }
         return () => clearInterval(timer);
     }, [status]);
+
+
 
     const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
 
@@ -56,45 +55,50 @@ export function Dashboard() {
                 }
             };
 
-            recorder.onstop = () => {
-                const blob = new Blob(chunksRef.current, { type: mimeType });
-                const url = URL.createObjectURL(blob);
-
-                dispatch(stopRecording(url));
-
+            recorder.onstop = async () => {
+                const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+                try {
+                    const arrayBuffer = await blob.arrayBuffer();
+                    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    const wavBlob = audioBufferToWav(audioBuffer);
+                    const url = URL.createObjectURL(wavBlob);
+                    dispatch(stopRecording(url));
+                } catch (error) {
+                    dispatch(setRecordingError('Error converting audio to WAV'));
+                }
                 streamRef.current?.getTracks().forEach(track => track.stop());
                 streamRef.current = null;
             };
-
             recorder.start();
             dispatch(startRecording());
         } catch (err) {
-            console.error('Error accessing microphone:', err);
+            dispatch(setRecordingError('Error accessing microphone'));
         }
     };
 
-    const handleStop = () => {
+    const handleStop = useCallback(() => {
         if (mediaRecorder && mediaRecorder.state !== 'inactive') {
             mediaRecorder.stop();
         }
-    };
+    }, [mediaRecorder]);
 
-    const handleAnalyze = () => {
+    useEffect(() => {
+        if (status === 'recording' && recordingTime >= 30) {
+            handleStop();
+        }
+    }, [recordingTime, status, handleStop]);
+
+    const handleAnalyze = async () => {
         if (!audioUrl) return;
-        console.log('Analyzing audio...');
-        
-        dispatch(startAnalyzing());
-
-        setTimeout(() => {
-            const isNormal = Math.random() > 0.5;
-            dispatch(setAnalysisResult({
-                diagnosis: isNormal ? 'Normal Result' : 'Needs Attention',
-                confidence: 0.95,
-                details: isNormal
-                    ? 'Your heart sounds appear normal. No immediate concerns detected.'
-                    : 'Some irregularities detected. We recommend consulting with a healthcare provider.'
-            }));
-        }, 3000);
+        try {
+            // Fetch the blob from the object URL
+            const response = await fetch(audioUrl);
+            const blob = await response.blob();
+            dispatch(analyzeAudio(blob));
+        } catch (err) {
+            dispatch(setRecordingError('Failed to prepare audio for upload'));
+        }
     };
 
     const handleReset = () => {
@@ -203,7 +207,9 @@ export function Dashboard() {
                                         <Mic className="w-8 h-8 text-cyan-600" />
                                     </div>
                                     <p className="text-gray-600 mb-4">{t('dashboard.clickToListen')}</p>
-                                    <audio controls src={audioUrl || ''} className="w-full max-w-md mx-auto" />
+                                    <div className="w-full max-w-md mx-auto">
+                                        <WaveformPlayer audioUrl={audioUrl} />
+                                    </div>
                                 </div>
 
                                 <div className="flex gap-4 justify-center">
@@ -264,6 +270,17 @@ export function Dashboard() {
                                         {t('dashboard.viewReport')}
                                     </Button>
                                 </div>
+                            </div>
+                        )}
+
+                        {status === 'error' && (
+                            <div className="text-center py-8">
+                                <div className="mb-6 flex justify-center">
+                                    <AlertCard title="Error" message={error || 'An unknown error occurred'} />
+                                </div>
+                                <Button variant="outline" onClick={handleReset} className="px-6 py-4 rounded-xl">
+                                    {t('dashboard.recordAgain')}
+                                </Button>
                             </div>
                         )}
 

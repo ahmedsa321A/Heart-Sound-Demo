@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { useAppSelector, useAppDispatch } from '@/store';
 import { updateProfile } from '@/store/slices/authSlice';
 import { Loader } from '@/components/ui/loader';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import AlertCard from '@/components/ui/alert-card';
 import { Navbar } from '@/components/layout/navbar';
 import { logout } from '@/store/slices/authSlice';
 import { useNavigate } from 'react-router-dom';
@@ -77,15 +77,20 @@ export function ProfilePage() {
 
                     <div className="p-8">
                         {successMessage && (
-                            <Alert className="mb-6 bg-green-50 text-green-700 border-green-200">
-                                <AlertDescription>{successMessage}</AlertDescription>
-                            </Alert>
+                            <AlertCard
+                                variant="success"
+                                message={successMessage}
+                                onClose={() => setSuccessMessage('')}
+                                className="mb-6"
+                            />
                         )}
 
                         {error && (
-                            <Alert variant="destructive" className="mb-6">
-                                <AlertDescription>{error}</AlertDescription>
-                            </Alert>
+                            <AlertCard
+                                variant="error"
+                                message={error}
+                                className="mb-6"
+                            />
                         )}
 
                         <form onSubmit={handleUpdate} className="space-y-6 max-w-2xl">

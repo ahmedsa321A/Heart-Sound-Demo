@@ -7,7 +7,7 @@ import FormInput from '@/components/ui/form-input';
 import { useAppDispatch, useAppSelector } from '@/store';
 import { forgotPassword, clearError } from '@/store/slices/authSlice';
 import { Loader } from '@/components/ui/loader';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import AlertCard from '@/components/ui/alert-card';
 import { CheckCircle2 } from 'lucide-react';
 
 export function ForgotPassword() {
@@ -66,12 +66,12 @@ export function ForgotPassword() {
                     <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
                         <CheckCircle2 className="w-8 h-8 text-green-600" />
                     </div>
-                    <Alert className="border-green-200 bg-green-50">
-                        <AlertTitle className="text-green-800 font-semibold mb-2">Check your email</AlertTitle>
-                        <AlertDescription className="text-green-700">
-                            {t('auth.forgotPasswordSuccess')}
-                        </AlertDescription>
-                    </Alert>
+                    <AlertCard
+                        variant="success"
+                        title="Check your email"
+                        message={t('auth.forgotPasswordSuccess')}
+                        dismissible={false}
+                    />
                     <Link to="/login" className="w-full">
                         <Button className="w-full bg-cyan-600 hover:bg-cyan-700 text-white">
                             {t('auth.backToLogin')}
@@ -81,9 +81,11 @@ export function ForgotPassword() {
             ) : (
                 <>
                     {error && (
-                        <Alert variant="destructive" className="mb-6">
-                            <AlertDescription>{error}</AlertDescription>
-                        </Alert>
+                        <AlertCard
+                            variant="error"
+                            message={error}
+                            className="mb-6"
+                        />
                     )}
 
                     <form onSubmit={handleSubmit} className="space-y-6">

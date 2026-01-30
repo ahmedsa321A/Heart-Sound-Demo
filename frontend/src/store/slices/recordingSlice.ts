@@ -1,8 +1,9 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
+import { audioService } from '@/services/audioService';
 
 export type RecordingStatus = 'idle' | 'recording' | 'review' | 'analyzing' | 'complete' | 'error';
 
-interface AnalysisResult {
+export interface AnalysisResult {
     diagnosis: string;
     confidence: number;
     details: string;
@@ -22,6 +23,18 @@ const initialState: RecordingState = {
     error: null,
 };
 
+export const analyzeAudio = createAsyncThunk(
+    'recording/analyze',
+    async (audioBlob: Blob, { rejectWithValue }) => {
+        try {
+            const result = await audioService.uploadAudio(audioBlob);
+            return result;
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data?.message || 'Failed to analyze audio');
+        }
+    }
+);
+
 const recordingSlice = createSlice({
     name: 'recording',
     initialState,
@@ -32,7 +45,7 @@ const recordingSlice = createSlice({
         },
         stopRecording: (state, action: PayloadAction<string>) => {
             state.status = 'review';
-            state.audioUrl = action.payload; // Store the Blob URL
+            state.audioUrl = action.payload; 
         },
         startAnalyzing: (state) => {
             state.status = 'analyzing';
@@ -53,6 +66,21 @@ const recordingSlice = createSlice({
             state.error = null;
         }
     },
+    extraReducers: (builder) => {
+        builder
+            .addCase(analyzeAudio.pending, (state) => {
+                state.status = 'analyzing';
+                state.error = null;
+            })
+            .addCase(analyzeAudio.fulfilled, (state, action) => {
+                state.status = 'complete';
+                state.analysisResult = action.payload;
+            })
+            .addCase(analyzeAudio.rejected, (state, action) => {
+                state.status = 'error';
+                state.error = action.payload as string;
+            });
+    }
 });
 
 export const { startRecording, stopRecording, startAnalyzing, setAnalysisResult, setRecordingError, resetRecording } = recordingSlice.actions;

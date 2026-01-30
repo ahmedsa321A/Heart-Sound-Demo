@@ -8,17 +8,7 @@ import { RegisterStep1 } from '@/pages/RegisterStep1';
 import { RegisterStep2 } from '@/pages/RegisterStep2';
 import { Dashboard } from '@/pages/Dashboard';
 import { ProfilePage } from '@/pages/ProfilePage';
-import { useAppSelector } from '@/store';
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-    const { user } = useAppSelector((state) => state.auth);
-    const token = localStorage.getItem('token');
-
-    if (!user && !token) {
-        return <Navigate to="/login" replace />;
-    }
-    return <>{children}</>;
-};
 
 export default function App() {
     const { i18n } = useTranslation();
@@ -38,17 +28,15 @@ export default function App() {
             <Route
                 path="/dashboard"
                 element={
-                    <ProtectedRoute>
                         <Dashboard />
-                    </ProtectedRoute>
+                    
                 }
             />
             <Route
                 path="/profile"
                 element={
-                    <ProtectedRoute>
                         <ProfilePage />
-                    </ProtectedRoute>
+                    
                 }
             />
             {/* Redirect unknown routes to landing */}

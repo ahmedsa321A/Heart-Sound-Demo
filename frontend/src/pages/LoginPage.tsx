@@ -6,9 +6,9 @@ import { AuthLayout } from '@/components/layout/auth-layout';
 import { Button } from '@/components/ui/button';
 import FormInput from '@/components/ui/form-input';
 import { useAppDispatch, useAppSelector } from '@/store';
-import { loginUser, clearError } from '@/store/slices/authSlice';
+import { clearError } from '@/store/slices/authSlice';
 import { Loader } from '@/components/ui/loader';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import AlertCard from '@/components/ui/alert-card';
 import { validateLogin, AuthErrors } from '@/utils/helper';
 
 export function LoginPage() {
@@ -44,7 +44,7 @@ export function LoginPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         const newErrors: AuthErrors = {};
         validateLogin(formData, newErrors);
 
@@ -74,9 +74,11 @@ export function LoginPage() {
             </div>
 
             {error && (
-                <Alert variant="destructive" className="mb-6">
-                    <AlertDescription>{error}</AlertDescription>
-                </Alert>
+                <AlertCard
+                    variant="error"
+                    message={error}
+                    className="mb-6"
+                />
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6">

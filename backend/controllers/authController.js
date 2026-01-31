@@ -263,8 +263,6 @@ export const refresh = async (req, res) => {
     }
 };
 
-import bcrypt from 'bcryptjs';
-import crypto from 'crypto';
 
 export const forgotPassword = async (req, res) => {
     try { 

@@ -1,4 +1,7 @@
 import 'dotenv/config';
+import cookieParser from 'cookie-parser';
+
+ 
 import express from 'express';
 import dbConnection from './DB/db.connection.js';
 import cors from 'cors';
@@ -15,6 +18,7 @@ app.use(cors({
 app.use(cookieParser());
 dbConnection();
 
+app.use(cookieParser());
 app.use(express.json());
 
 import authRouter from './Modules/auth_routes.js';
@@ -35,3 +39,4 @@ app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({ success: false, msg: 'Something went wrong!', error: err.message });
 });
+

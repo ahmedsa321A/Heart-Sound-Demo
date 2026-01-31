@@ -1,18 +1,9 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '@/store';
 import { checkAuth } from '@/store/slices/authSlice';
-import { LandingPage } from '@/pages/LandingPage';
-import { LoginPage } from '@/pages/LoginPage';
-import { ForgotPassword } from '@/pages/ForgotPassword';
-import { RegisterStep1 } from '@/pages/RegisterStep1';
-import { RegisterStep2 } from '@/pages/RegisterStep2';
-import { VerifyOTPPage } from '@/pages/VerifyOTPPage';
-import { Dashboard } from '@/pages/Dashboard';
-import { ProfilePage } from '@/pages/ProfilePage';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
 
 
 export default function App() {
@@ -29,21 +20,7 @@ export default function App() {
     }, [dispatch]);
 
     return (
-        <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/register" element={<RegisterStep1 />} />
-            <Route path="/register/step-2" element={<RegisterStep2 />} />
-            <Route path="/verify-otp" element={<VerifyOTPPage />} />
-            <Route element={<ProtectedRoute />}>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/profile" element={<ProfilePage />} />
-            </Route>
-
-            {/* Redirect unknown routes to landing */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <Outlet />
     );
 }
 

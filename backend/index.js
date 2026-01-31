@@ -1,12 +1,11 @@
 import 'dotenv/config';
 import cookieParser from 'cookie-parser';
 
- 
+
+
 import express from 'express';
 import dbConnection from './DB/db.connection.js';
 import cors from 'cors';
-
-import cookieParser from 'cookie-parser';
 
 const app = express();
 
@@ -18,14 +17,15 @@ app.use(cors({
 app.use(cookieParser());
 dbConnection();
 
-app.use(cookieParser());
 app.use(express.json());
 
+
+import userRouter from './Modules/user_routes.js';
 import authRouter from './Modules/auth_routes.js';
 
 app.use("/auth", authRouter);
-//app.use("/users",userRouter);
-//app.use("/predictions",predictionRouter);
+app.use("/users", userRouter);
+// app.use("/predictions", predictionRouter);
 //app.use("/audio",audioRouter);
 
 

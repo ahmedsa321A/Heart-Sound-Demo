@@ -50,8 +50,6 @@ export function RegisterStep1() {
             age: formData.age ? Number(formData.age) : undefined
         };
         dispatch(setRegistrationData(dataToDispatch));
-
-        console.log(formData);
         navigate('/register/step-2');
     };
 
@@ -87,7 +85,7 @@ export function RegisterStep1() {
                     type="text"
                     value={formData.fullName}
                     onChange={handleChange}
-                    placeholder="Your Full Name"
+                    placeholder={t('auth.fullNamePlaceholder')}
                     error={errors.fullName}
                 />
 
@@ -98,7 +96,7 @@ export function RegisterStep1() {
                     type="text"
                     value={formData.email}
                     onChange={handleChange}
-                    placeholder="you@example.com"
+                    placeholder={t('auth.emailPlaceholder')}
                     error={errors.email}
                 />
 
@@ -109,7 +107,7 @@ export function RegisterStep1() {
                     type="password"
                     value={formData.password}
                     onChange={handleChange}
-                    placeholder="••••••••"
+                    placeholder={t('auth.passwordPlaceholder')}
                     error={errors.password}
                     showPassword={showPassword}
                     onTogglePassword={() => setShowPassword(!showPassword)}
@@ -124,7 +122,7 @@ export function RegisterStep1() {
                         type="number"
                         value={formData.age}
                         onChange={handleChange}
-                        placeholder="25"
+                        placeholder={t('auth.agePlaceholder')}
                         error={errors.age}
                     />
 

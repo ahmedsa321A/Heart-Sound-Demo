@@ -108,3 +108,21 @@ export const validateRegisterStep2 = ({
     if (!renalPathologies) errors.renalPathologies = "Renal pathologies status is required";
 };
 
+// Helper to map backend messages to translation keys
+export const getTranslatedMessage = (message: string, t: (key: string) => string): string => {
+    // Normalization to handle potential slight variations or casing
+    const lowerMsg = message?.toLowerCase()?.trim();
+
+    if (!lowerMsg) return message;
+
+    if (lowerMsg.includes('user already exists')) return t('auth.userExists');
+    if (lowerMsg.includes('invalid credentials')) return t('auth.invalidCredentials');
+    if (lowerMsg.includes('verify your email')) return t('auth.emailVerifyFirst');
+    if (lowerMsg.includes('server error')) return t('auth.serverError');
+    if (lowerMsg.includes('logged in successfully')) return t('auth.loginSuccess');
+    if (lowerMsg.includes('email sent')) return t('auth.emailSent');
+
+    // Return original if no match found
+    return message;
+};
+

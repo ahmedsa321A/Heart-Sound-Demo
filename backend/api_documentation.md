@@ -1,4 +1,4 @@
-# CardioLens API Documentation
+# HeartAi API Documentation
 
 Base URL: `http://localhost:3000`
 

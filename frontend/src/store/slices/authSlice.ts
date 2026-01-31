@@ -32,7 +32,7 @@ export const loginUser = createAsyncThunk(
             }
             return response;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Login failed');
+            return rejectWithValue(error.response?.data?.msg || error.response?.data?.message || 'Login failed');
         }
     }
 );
@@ -48,7 +48,7 @@ export const registerUser = createAsyncThunk(
             }
             return response;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Registration failed');
+            return rejectWithValue(error.response?.data?.msg || error.response?.data?.message || 'Registration failed');
         }
     }
 );
@@ -63,7 +63,7 @@ export const verifyOTP = createAsyncThunk(
             }
             return response;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Verification failed');
+            return rejectWithValue(error.response?.data?.msg || error.response?.data?.message || 'Verification failed');
         }
     }
 );
@@ -84,13 +84,51 @@ export const updateProfile = createAsyncThunk(
 // Forgot Password
 export const forgotPassword = createAsyncThunk(
     'auth/forgotPassword',
-    async (_email: string, { rejectWithValue }) => {
+    async (email: string, { rejectWithValue }) => {
         try {
-            // Mock API call
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            return { message: 'Password reset link sent to your email' };
+            const response = await authService.forgotPassword(email);
+            return response;
         } catch (error: any) {
             return rejectWithValue(error.response?.data?.message || 'Failed to process request');
+        }
+    }
+);
+
+// Verify Reset OTP
+export const verifyResetOTP = createAsyncThunk(
+    'auth/verifyResetOTP',
+    async (data: { email: string; otp: string }, { rejectWithValue }) => {
+        try {
+            const response = await authService.verifyResetOTP(data);
+            return response;
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data?.message || 'Verification failed');
+        }
+    }
+);
+
+// Reset Password
+export const resetPassword = createAsyncThunk(
+    'auth/resetPassword',
+    async (newPassword: string, { rejectWithValue }) => {
+        try {
+            const response = await authService.resetPassword(newPassword);
+            return response;
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data?.message || 'Reset failed');
+        }
+    }
+);
+
+// Change Password
+export const changePassword = createAsyncThunk(
+    'auth/changePassword',
+    async (data: { currentPassword: string; newPassword: string; confirmPassword: string }, { rejectWithValue }) => {
+        try {
+            const response = await authService.changePassword(data);
+            return response;
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data?.message || 'Change password failed');
         }
     }
 );
@@ -107,6 +145,18 @@ export const checkAuth = createAsyncThunk(
             return user;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to check auth');
+        }
+    }
+);
+
+// Logout User
+export const logoutUser = createAsyncThunk(
+    'auth/logout',
+    async (_, { rejectWithValue }) => {
+        try {
+            await authService.logout();
+        } catch (error: any) {
+            return rejectWithValue('Logout failed');
         }
     }
 );
@@ -197,6 +247,49 @@ const authSlice = createSlice({
             .addCase(forgotPassword.rejected, (state, action) => {
                 state.isLoading = false;
                 state.error = action.payload as string;
+            })
+            // Verify Reset OTP
+            .addCase(verifyResetOTP.pending, (state) => {
+                state.isLoading = true;
+                state.error = null;
+            })
+            .addCase(verifyResetOTP.fulfilled, (state) => {
+                state.isLoading = false;
+            })
+            .addCase(verifyResetOTP.rejected, (state, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
+            })
+            // Reset Password
+            .addCase(resetPassword.pending, (state) => {
+                state.isLoading = true;
+                state.error = null;
+            })
+            .addCase(resetPassword.fulfilled, (state) => {
+                state.isLoading = false;
+            })
+            .addCase(resetPassword.rejected, (state, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
+            })
+            // Change Password
+            .addCase(changePassword.pending, (state) => {
+                state.isLoading = true;
+                state.error = null;
+            })
+            .addCase(changePassword.fulfilled, (state) => {
+                state.isLoading = false;
+            })
+            .addCase(changePassword.rejected, (state, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
+            })
+
+            // Logout
+            .addCase(logoutUser.fulfilled, (state) => {
+                state.user = null;
+                state.token = null;
+                state.registrationData = null;
             })
             // Check Auth
             .addCase(checkAuth.pending, (state) => {

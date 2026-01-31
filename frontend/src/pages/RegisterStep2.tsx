@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft } from 'lucide-react';
@@ -8,16 +8,23 @@ import { useAppDispatch, useAppSelector } from '@/store';
 import { registerUser } from '@/store/slices/authSlice';
 import { Loader } from '@/components/ui/loader';
 import { RegisterData } from '@/services/apiTypes';
+import AlertCard from '@/components/ui/alert-card';
 
 import { FormRadioGroup } from '@/components/ui/form-radio-group';
 import { FormCheckboxGroup } from '@/components/ui/form-checkbox-group';
-import { validateRegisterStep2, AuthErrors } from '@/utils/helper';
+import { validateRegisterStep2, AuthErrors, getTranslatedMessage } from '@/utils/helper';
 
 export function RegisterStep2() {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { registrationData, isLoading } = useAppSelector((state) => state.auth);
     const { t } = useTranslation();
+
+    useEffect(() => {
+        if (!registrationData?.email) {
+            navigate('/register');
+        }
+    }, [registrationData, navigate]);
 
     const [formData, setFormData] = useState({
         familyHistory: '',
@@ -27,6 +34,7 @@ export function RegisterStep2() {
         renalPathologies: '',
     });
     const [errors, setErrors] = useState<AuthErrors>({});
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
     const handleRadioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -57,11 +65,23 @@ export function RegisterStep2() {
         }
 
         const fullData = { ...registrationData, ...formData } as RegisterData;
-        console.log(fullData);
 
-        const resultAction = await dispatch(registerUser(fullData));
-        if (registerUser.fulfilled.match(resultAction)) {
-            navigate('/verify-otp');
+        try {
+            const resultAction = await dispatch(registerUser(fullData));
+
+            if (registerUser.fulfilled.match(resultAction)) {
+                setSuccessMessage(t('auth.registrationSuccess'));
+                setTimeout(() => {
+                    navigate('/verify-otp');
+                }, 3000);
+            } else {
+                if (registerUser.rejected.match(resultAction)) {
+                    const errorPayload = typeof resultAction.payload === 'string' ? resultAction.payload : 'Unknown error';
+                    setErrors({ ...errors, general: `Registration failed: ${errorPayload}` } as any);
+                }
+            }
+        } catch (err) {
+            setErrors({ ...errors, general: 'Unexpected error during registration' } as any);
         }
     };
 
@@ -98,6 +118,24 @@ export function RegisterStep2() {
                     </div>
                 </div>
             </div>
+
+            {successMessage && (
+                <AlertCard
+                    variant="success"
+                    message={getTranslatedMessage(successMessage, t)}
+                    className="mb-6"
+                    onClose={() => setSuccessMessage(null)}
+                />
+            )}
+
+            {errors.general && (
+                <AlertCard
+                    variant="error"
+                    message={getTranslatedMessage(errors.general, t)}
+                    className="mb-6"
+                    onClose={() => setErrors({ ...errors, general: undefined })}
+                />
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
                 <FormRadioGroup

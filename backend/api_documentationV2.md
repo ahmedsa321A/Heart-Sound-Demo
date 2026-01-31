@@ -1,7 +1,7 @@
-# CardioLens API Documentation
+# HeartAi API Documentation
 
 ## Overview
-This document outlines the API endpoints for the CardioLens application.
+This document outlines the API endpoints for the HeartAi application.
 - **Base URL (Backend)**: `http://localhost:3000`
 - **Frontend Integration**:
   - All requests to protected routes must include `withCredentials: true` to send cookies.

@@ -6,15 +6,15 @@ import { AuthLayout } from '@/components/layout/auth-layout';
 import { Button } from '@/components/ui/button';
 import FormInput from '@/components/ui/form-input';
 import { useAppDispatch, useAppSelector } from '@/store';
-import { clearError } from '@/store/slices/authSlice';
+import { clearError, loginUser } from '@/store/slices/authSlice';
 import { Loader } from '@/components/ui/loader';
 import AlertCard from '@/components/ui/alert-card';
-import { validateLogin, AuthErrors } from '@/utils/helper';
+import { validateLogin, AuthErrors, getTranslatedMessage } from '@/utils/helper';
 
 export function LoginPage() {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
-    const { isLoading, error, user } = useAppSelector((state) => state.auth);
+    const { isLoading, error } = useAppSelector((state) => state.auth);
     const { t } = useTranslation();
 
     const [showPassword, setShowPassword] = useState(false);
@@ -24,15 +24,14 @@ export function LoginPage() {
     });
     const [errors, setErrors] = useState<AuthErrors>({});
 
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
+    const [localError, setLocalError] = useState<string | null>(null);
+
     useEffect(() => {
         dispatch(clearError());
     }, [dispatch]);
 
-    useEffect(() => {
-        if (user) {
-            navigate('/dashboard');
-        }
-    }, [user, navigate]);
+    // Removed auto-redirect useEffect to handle it in handleSubmit
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -44,6 +43,7 @@ export function LoginPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setLocalError(null);
 
         const newErrors: AuthErrors = {};
         validateLogin(formData, newErrors);
@@ -52,12 +52,18 @@ export function LoginPage() {
             setErrors(newErrors);
             return;
         }
-        console.log(formData);
 
-        // const resultAction = await dispatch(loginUser(formData));
-        // if (loginUser.fulfilled.match(resultAction)) {
-        //     navigate('/dashboard');
-        // }
+        const resultAction = await dispatch(loginUser(formData));
+        if (loginUser.fulfilled.match(resultAction)) {
+            const successMsg = resultAction.payload.msg || t('auth.loginSuccess') || 'Login successful!';
+            setSuccessMessage(successMsg);
+            setTimeout(() => {
+                navigate('/dashboard');
+            }, 3000);
+        } else if (loginUser.rejected.match(resultAction)) {
+            const errorPayload = typeof resultAction.payload === 'string' ? resultAction.payload : t('auth.loginFailed') || 'Login failed';
+            setLocalError(errorPayload);
+        }
     };
 
     return (
@@ -73,11 +79,24 @@ export function LoginPage() {
                 <p className="text-gray-600">{t('auth.enterCredentials')}</p>
             </div>
 
-            {error && (
+            {successMessage && (
+                <AlertCard
+                    variant="success"
+                    message={getTranslatedMessage(successMessage, t)}
+                    className="mb-6"
+                    onClose={() => setSuccessMessage(null)}
+                />
+            )}
+
+            {(localError || error) && (
                 <AlertCard
                     variant="error"
-                    message={error}
+                    message={getTranslatedMessage(localError || error || 'An error occurred', t)}
                     className="mb-6"
+                    onClose={() => {
+                        setLocalError(null);
+                        dispatch(clearError());
+                    }}
                 />
             )}
 
@@ -89,8 +108,8 @@ export function LoginPage() {
                     type="text"
                     value={formData.email}
                     onChange={handleChange}
-                    placeholder="you@example.com"
-                    error={errors.email}
+                    placeholder={t('auth.emailPlaceholder')}
+                    error={errors.email || (localError && !errors.password ? ' ' : undefined)}
                 />
 
                 <FormInput
@@ -100,7 +119,7 @@ export function LoginPage() {
                     type="password"
                     value={formData.password}
                     onChange={handleChange}
-                    placeholder="••••••••"
+                    placeholder={t('auth.passwordPlaceholder')}
                     showPassword={showPassword}
                     onTogglePassword={() => setShowPassword(!showPassword)}
                     error={errors.password}

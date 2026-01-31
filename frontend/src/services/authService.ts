@@ -14,9 +14,6 @@ export const authService = {
 
     login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
         const response = await api.post<AuthResponse>('/auth/login', credentials);
-        if (response.data.success) {
-            // User is now persisted in Redux via Slice, not localStorage
-        }
         return response.data;
     },
 
@@ -25,7 +22,7 @@ export const authService = {
             const response = await api.post<ApiResponse>('/auth/logout');
             return response.data;
         } finally {
-            // localStorage cleanup not needed
+            
 
         }
     },
@@ -37,5 +34,25 @@ export const authService = {
         } catch (error) {
             return null;
         }
+    },
+
+    forgotPassword: async (email: string): Promise<ApiResponse> => {
+        const response = await api.post<ApiResponse>('/auth/forgot-password', { email });
+        return response.data;
+    },
+
+    verifyResetOTP: async (data: { email: string; otp: string }): Promise<ApiResponse & { expiresIn?: number }> => {
+        const response = await api.post<ApiResponse & { expiresIn?: number }>('/auth/verify-reset-otp', data);
+        return response.data;
+    },
+
+    resetPassword: async (newPassword: string): Promise<ApiResponse> => {
+        const response = await api.post<ApiResponse>('/auth/reset-password', { newPassword });
+        return response.data;
+    },
+
+    changePassword: async (data: { currentPassword: string; newPassword: string; confirmPassword: string }): Promise<ApiResponse> => {
+        const response = await api.post<ApiResponse>('/auth/change-password', data);
+        return response.data;
     }
 };

@@ -6,8 +6,9 @@ import { AuthLayout } from '@/components/layout/auth-layout';
 import { Button } from '@/components/ui/button';
 import FormInput from '@/components/ui/form-input';
 import { useAppDispatch, useAppSelector } from '@/store';
-import { verifyOTP } from '@/store/slices/authSlice';
+import { verifyOTP, clearError } from '@/store/slices/authSlice';
 import { Loader } from '@/components/ui/loader';
+import AlertCard from '@/components/ui/alert-card';
 
 export function VerifyOTPPage() {
     const navigate = useNavigate();
@@ -17,6 +18,7 @@ export function VerifyOTPPage() {
 
     const [otp, setOtp] = useState('');
     const [localError, setLocalError] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
     useEffect(() => {
         if (!registrationData?.email) {
@@ -41,14 +43,27 @@ export function VerifyOTPPage() {
         }));
 
         if (verifyOTP.fulfilled.match(resultAction)) {
-            navigate('/login');
+            setSuccessMessage(t('auth.verifiedSuccess') || 'Account verified successfully!');
+            setTimeout(() => {
+                navigate('/login');
+            }, 3000);
+        } else if (verifyOTP.rejected.match(resultAction)) {
+            const errorPayload = typeof resultAction.payload === 'string' ? resultAction.payload : 'Verification failed';
+            setLocalError(errorPayload);
         }
+    };
+    const getErrorMessage = () => {
+        const msg = localError || error;
+        if (msg === 'Invalid OTP or OTP has expired') {
+            return t('auth.invalidOrExpiredOTP');
+        }
+        return msg ? t(msg) : '';
     };
 
     return (
         <AuthLayout
-            title="Verify Your Account"
-            subtitle="Enter the code sent to your email"
+            title={t('auth.verifyAccount')}
+            subtitle={t('auth.enterCode')}
         >
             <div className="mb-8">
                 <Link to="/register/step-2" className="inline-flex items-center gap-2 mb-6">
@@ -65,24 +80,41 @@ export function VerifyOTPPage() {
                     </div>
                     <div className="flex-1">
                         <div className="h-2 bg-cyan-600 rounded-full"></div>
-                        <p className="text-sm text-cyan-600 font-medium mt-2">Verification</p>
+                        <p className="text-sm text-cyan-600 font-medium mt-2">{t('auth.verification')}</p>
                     </div>
                 </div>
             </div>
 
+            {successMessage && (
+                <AlertCard
+                    variant="success"
+                    message={successMessage}
+                    className="mb-6"
+                    onClose={() => setSuccessMessage(null)}
+                />
+            )}
+
+            {(localError || error) && (
+                <AlertCard
+                    variant="error"
+                    message={getErrorMessage()}
+                    className="mb-6"
+                />
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="bg-blue-50 p-4 rounded-lg text-sm text-blue-700 mb-6">
-                    We've sent a verification code to <strong>{registrationData?.email}</strong>.
+                    {t('auth.codeSentTo')} <strong>{registrationData?.email}</strong>.
                 </div>
 
                 <FormInput
                     id="otp"
                     name="otp"
                     type="text"
-                    label="Verification Code"
+                    label={t('auth.verificationCode')}
                     value={otp}
                     onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setOtp(e.target.value)}
-                    placeholder="Enter 6-digit code"
+                    placeholder={t('auth.enter6DigitCode')}
                     error={(localError || error) || undefined}
                     required
                 />
@@ -95,14 +127,14 @@ export function VerifyOTPPage() {
                         className="flex-1 py-6 rounded-xl text-lg"
                     >
                         <ChevronLeft className="w-5 h-5 mr-2 rtl:rotate-180" />
-                        Back
+                        {t('common.back')}
                     </Button>
                     <Button
                         type="submit"
                         disabled={isLoading}
                         className="flex-1 bg-gradient-to-r from-cyan-600 to-teal-600 text-white py-6 rounded-xl hover:from-cyan-700 hover:to-teal-700 transition-all font-medium shadow-lg shadow-cyan-500/30 text-lg"
                     >
-                        {isLoading ? <Loader className="mr-2" /> : 'Verify Account'}
+                        {isLoading ? <Loader className="mr-2" /> : t('auth.verifyBtn')}
                     </Button>
                 </div>
             </form>

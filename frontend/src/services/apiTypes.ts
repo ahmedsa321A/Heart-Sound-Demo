@@ -74,3 +74,22 @@ export interface HistoryItem {
     status: 'normal' | 'attention';
     audioUrl?: string; // Optional if we don't always load the audio for list items
 }
+
+export interface ForgotPasswordData {
+    email: string;
+}
+
+export interface VerifyResetOtpData {
+    email: string;
+    otp: string;
+}
+
+export interface ResetPasswordData {
+    newPassword: string;
+}
+
+export interface ChangePasswordData {
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+}

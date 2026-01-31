@@ -4,7 +4,7 @@ import { User, Mail, Save, ArrowLeft, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAppSelector, useAppDispatch } from '@/store';
-import { updateProfile } from '@/store/slices/authSlice';
+import { updateProfile, changePassword } from '@/store/slices/authSlice';
 import { Loader } from '@/components/ui/loader';
 import AlertCard from '@/components/ui/alert-card';
 import { Navbar } from '@/components/layout/navbar';
@@ -145,6 +145,80 @@ export function ProfilePage() {
                                             {t('profile.saveChanges')}
                                         </>
                                     )}
+                                </Button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div className="p-8 border-t bg-gray-50/50">
+                        <form onSubmit={async (e) => {
+                            e.preventDefault();
+                            const form = e.target as HTMLFormElement;
+                            const currentPassword = (form.elements.namedItem('currentPassword') as HTMLInputElement).value;
+                            const newPassword = (form.elements.namedItem('newPassword') as HTMLInputElement).value;
+                            const confirmPassword = (form.elements.namedItem('confirmPassword') as HTMLInputElement).value;
+
+                            if (newPassword !== confirmPassword) {
+                                alert("New passwords do not match");
+                                return;
+                            }
+
+                            const result = await dispatch(changePassword({ currentPassword, newPassword, confirmPassword }));
+                            if (changePassword.fulfilled.match(result)) {
+                                setSuccessMessage('Password changed successfully');
+                                form.reset();
+                                setTimeout(() => setSuccessMessage(''), 3000);
+                            }
+                        }} className="space-y-6 max-w-2xl">
+                            <h2 className="text-xl font-semibold text-gray-900 mb-6 border-b pb-2">
+                                Change Password
+                            </h2>
+
+                            <div className="grid gap-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Current Password
+                                    </label>
+                                    <Input
+                                        name="currentPassword"
+                                        type="password"
+                                        className="py-6 rounded-xl"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        New Password
+                                    </label>
+                                    <Input
+                                        name="newPassword"
+                                        type="password"
+                                        className="py-6 rounded-xl"
+                                        required
+                                        minLength={8}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Confirm New Password
+                                    </label>
+                                    <Input
+                                        name="confirmPassword"
+                                        type="password"
+                                        className="py-6 rounded-xl"
+                                        required
+                                        minLength={8}
+                                    />
+                                </div>
+                            </div>
+                            <div className="pt-4">
+                                <Button
+                                    type="submit"
+                                    variant="outline"
+                                    className="px-8 py-6 rounded-xl border-cyan-600 text-cyan-700 hover:bg-cyan-50"
+                                    disabled={isLoading}
+                                >
+                                    {isLoading ? <Loader className="w-5 h-5" /> : 'Update Password'}
                                 </Button>
                             </div>
                         </form>

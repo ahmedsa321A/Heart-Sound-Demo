@@ -9,6 +9,7 @@ import { generateAccessToken, generateRefreshToken } from '../utils/generateToke
 import RefreshToken from '../DB/refreshToken.model.js';
 import { hashToken } from '../utils/hashToken.utils.js';
 import BlacklistedToken from '../DB/blackListToken.model.js';
+import { getOtpEmailTemplate } from '../utils/emailTemplates.js';
 export const register = async (req, res) => {
     try {
         const { fullName, email, password, age, gender } = req.body;
@@ -37,7 +38,7 @@ export const register = async (req, res) => {
         } else {
             user.otp = otp;
             user.otpExpires = otpExpires;
-            user.password = password; 
+            user.password = password;
             user.fullName = fullName;
         }
 
@@ -69,19 +70,21 @@ export const register = async (req, res) => {
         console.log(`DEV MODE OTP: ${otp}`);
 
 
-        const message = `Your verification code for CardioLens is: ${otp}\n\nIt expires in 10 minutes.`;
+        const message = `Your verification code for HeartAi is: ${otp}\n\nIt expires in 10 minutes.`;
+        const html = getOtpEmailTemplate(otp);
 
         try {
             await sendEmail({
                 email: user.email,
-                subject: 'CardioLens Verification Code',
-                message
+                subject: 'HeartAi Verification Code',
+                message,
+                html
             });
 
-            res.status(200).json({ msg: 'Email sent. Please verify OTP.' });
+            res.status(200).json({ success: true, msg: 'Email sent. Please verify OTP.' });
         } catch (err) {
             console.error("Email sending failed (expected without valid credentials):", err.message);
-            res.status(200).json({ msg: 'Email failed (check server console for OTP), but user created.' });
+            res.status(200).json({ success: true, msg: 'Email failed (check server console for OTP), but user created.' });
         }
 
     } catch (err) {
@@ -110,7 +113,7 @@ export const verifyOTP = async (req, res) => {
 
         await user.save();
 
-        res.json({ msg: 'Account Verified! You can now login.' });
+        res.json({ success: true, msg: 'Account Verified! You can now login.' });
 
     } catch (err) {
         console.error(err.message);
@@ -190,7 +193,7 @@ export const logout = async (req, res) => {
 
     try {
         const token = req.cookies.token;
-        
+
         if (token) {
             try {
                 const decoded = jwt.decode(token);
@@ -266,23 +269,23 @@ export const refresh = async (req, res) => {
 
 
 export const forgotPassword = async (req, res) => {
-    try { 
+    try {
         const { email } = req.body;
 
         const user = await User.findOne({ email });
         if (!user) {
-            return res.status(200).json({ 
-                msg: 'If that email exists, we sent a reset code.' 
+            return res.status(200).json({
+                msg: 'If that email exists, we sent a reset code.'
             });
         }
 
         if (!user.isVerified) {
-            return res.status(400).json({ 
-                msg: 'Please verify your email first' 
+            return res.status(400).json({
+                msg: 'Please verify your email first'
             });
         }
 
-    
+
 
         // Generate OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -294,34 +297,36 @@ export const forgotPassword = async (req, res) => {
 
         user.otp = hashedOTP;
         user.otpExpires = otpExpires;
-      
+
 
         await user.save();
 
         console.log(`🔐 DEV MODE - Password Reset OTP for ${email}: ${otp}`);
 
-        const message = `Your password reset code for CardioLens is: ${otp}\n\nThis code expires in 10 minutes.\n\nIf you didn't request this, please ignore this email.`;
+        const message = `Your password reset code for HeartAi is: ${otp}\n\nThis code expires in 10 minutes.\n\nIf you didn't request this, please ignore this email.`;
+        const html = getOtpEmailTemplate(otp);
 
         try {
             await sendEmail({
                 email: user.email,
-                subject: 'CardioLens - Password Reset Code',
-                message
+                subject: 'HeartAi - Password Reset Code',
+                message,
+                html
             });
 
-            res.status(200).json({ 
-                msg: 'Password reset code sent to your email.' 
+            res.status(200).json({
+                msg: 'Password reset code sent to your email.'
             });
         } catch (err) {
             console.error("Email sending failed:", err.message);
-            
+
             // Clear OTP if email fails
             user.otp = undefined;
             user.otpExpires = undefined;
             await user.save();
-            
-            res.status(500).json({ 
-                msg: 'Failed to send email. Please try again.' 
+
+            res.status(500).json({
+                msg: 'Failed to send email. Please try again.'
             });
         }
 
@@ -334,7 +339,7 @@ export const forgotPassword = async (req, res) => {
 
 
 export const verifyResetOTP = async (req, res) => {
-    try {   
+    try {
         const { email, otp } = req.body;
 
         const user = await User.findOne({
@@ -349,11 +354,11 @@ export const verifyResetOTP = async (req, res) => {
         // ... OTP verification logic ...
 
         const isMatch = await bcrypt.compare(otp, user.otp);
-        
+
         if (!isMatch) {
             return res.status(400).json({ msg: 'Invalid or expired OTP' });
 
-            
+
         }
 
         const resetToken = crypto.randomBytes(32).toString('hex');
@@ -367,18 +372,18 @@ export const verifyResetOTP = async (req, res) => {
         user.resetToken = hashedResetToken;
         user.resetTokenExpires = resetTokenExpires;
         user.otp = undefined;
-    
+
 
         await user.save();
 
         res.cookie('resetToken', resetToken, {
-            httpOnly: true,        
-            secure: process.env.NODE_ENV === 'production', 
-            sameSite: 'strict',   
-            maxAge: 15 * 60 * 1000 
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 15 * 60 * 1000
         });
 
-        res.status(200).json({ 
+        res.status(200).json({
             msg: 'OTP verified successfully. You can now reset your password.',
             expiresIn: 15 * 60
         });
@@ -395,18 +400,18 @@ export const verifyResetOTP = async (req, res) => {
 export const resetPassword = async (req, res) => {
     try {
         const { newPassword } = req.body;
-        
+
         const resetToken = req.cookies.resetToken;
 
         if (!resetToken) {
-            return res.status(400).json({ 
-                msg: 'Reset token missing. Please verify OTP again.' 
+            return res.status(400).json({
+                msg: 'Reset token missing. Please verify OTP again.'
             });
         }
 
         if (!newPassword || newPassword.length < 8) {
-            return res.status(400).json({ 
-                msg: 'Password must be at least 8 characters' 
+            return res.status(400).json({
+                msg: 'Password must be at least 8 characters'
             });
         }
 
@@ -423,9 +428,9 @@ export const resetPassword = async (req, res) => {
         if (!user) {
             // Clear invalid/expired token
             res.clearCookie('resetToken');
-            
-            return res.status(400).json({ 
-                msg: 'Invalid or expired reset token. Please request a new code.' 
+
+            return res.status(400).json({
+                msg: 'Invalid or expired reset token. Please request a new code.'
             });
         }
 
@@ -444,8 +449,8 @@ export const resetPassword = async (req, res) => {
         // Invalidate all existing sessions 
         await RefreshToken.deleteMany({ user: user._id });
 
-        res.status(200).json({ 
-            msg: 'Password reset successful. Please login with your new password.' 
+        res.status(200).json({
+            msg: 'Password reset successful. Please login with your new password.'
         });
 
     } catch (err) {
@@ -460,29 +465,29 @@ export const changePassword = async (req, res) => {
 
         // Validate input
         if (!currentPassword || !newPassword || !confirmPassword) {
-            return res.status(400).json({ 
-                msg: 'Please provide current password, new password, and confirmation' 
+            return res.status(400).json({
+                msg: 'Please provide current password, new password, and confirmation'
             });
         }
 
         // Check if new password matches confirmation
         if (newPassword !== confirmPassword) {
-            return res.status(400).json({ 
-                msg: 'New password and confirmation do not match' 
+            return res.status(400).json({
+                msg: 'New password and confirmation do not match'
             });
         }
 
         // Validate new password strength
         if (newPassword.length < 8) {
-            return res.status(400).json({ 
-                msg: 'New password must be at least 8 characters long' 
+            return res.status(400).json({
+                msg: 'New password must be at least 8 characters long'
             });
         }
 
         // Check if new password is same as current
         if (currentPassword === newPassword) {
-            return res.status(400).json({ 
-                msg: 'New password must be different from current password' 
+            return res.status(400).json({
+                msg: 'New password must be different from current password'
             });
         }
 
@@ -497,8 +502,8 @@ export const changePassword = async (req, res) => {
         const isMatch = await bcrypt.compare(currentPassword, user.password);
 
         if (!isMatch) {
-            return res.status(400).json({ 
-                msg: 'Current password is incorrect' 
+            return res.status(400).json({
+                msg: 'Current password is incorrect'
             });
         }
 
@@ -516,7 +521,7 @@ export const changePassword = async (req, res) => {
         res.clearCookie('token');
         res.clearCookie('refreshToken');
 
-        res.status(200).json({ 
+        res.status(200).json({
             msg: 'Password changed successfully. Please login again with your new password.',
             requireLogin: true
         });

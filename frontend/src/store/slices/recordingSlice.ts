@@ -1,5 +1,6 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import { audioService } from '@/services/audioService';
+import i18n from '@/i18n';
 
 import { AnalysisResponse } from '@/services/apiTypes';
 
@@ -26,7 +27,30 @@ export const analyzeAudio = createAsyncThunk(
             const result = await audioService.uploadAudio(audioBlob);
             return result;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to analyze audio');
+            const backendMessage = error.response?.data?.message;
+            let errorMessage = i18n.t('audio.analysisFailed');
+
+            if (backendMessage === 'No audio file provided') {
+                errorMessage = i18n.t('audio.noFileProvided');
+            } else if (backendMessage === 'AI Service Error') {
+                errorMessage = i18n.t('audio.aiServiceError');
+            } else if (backendMessage === 'User not found') {
+                errorMessage = i18n.t('validation.userNotFound');
+            } else if (backendMessage === 'Server Error') {
+                errorMessage = i18n.t('auth.serverError');
+            } else if (backendMessage) {
+                // Fallback: Use the message from backend if it's not mapped, 
+                // but ideally populate the map as we find more errors.
+                // or just leave it to the generic fail.
+                // For now, let's append it to generic fail if it's unknown?
+                // No, standard generic fail is better for unknown errors in production usually, 
+                // unless we trust backend to send user-facing English strings that we can't translate easily.
+                // Let's stick to the generic one or the specific ones.
+                // Actually, reusing the logic: if we have a backend message, maybe it *is* the key?
+                // No, it's "No audio file provided".
+            }
+
+            return rejectWithValue(errorMessage);
         }
     }
 );

@@ -6,7 +6,6 @@ import { User, RegisterData, LoginCredentials } from '@/services/apiTypes';
 
 interface AuthState {
     user: User | null;
-    token: string | null;
     isLoading: boolean;
     error: string | null;
     registrationData: Partial<RegisterData> | null;
@@ -16,7 +15,6 @@ interface AuthState {
 // Initial State
 const initialState: AuthState = {
     user: null,
-    token: null,
     isLoading: false,
     error: null,
     registrationData: null,
@@ -182,7 +180,6 @@ const authSlice = createSlice({
     reducers: {
         logout: (state) => {
             state.user = null;
-            state.token = null;
             state.registrationData = null;
         },
         clearError: (state) => {
@@ -205,7 +202,6 @@ const authSlice = createSlice({
             .addCase(loginUser.fulfilled, (state, action) => {
                 state.isLoading = false;
                 state.user = action.payload.user;
-                state.token = action.payload.token;
                 state.isInitialized = true;
             })
             .addCase(loginUser.rejected, (state, action) => {
@@ -234,7 +230,6 @@ const authSlice = createSlice({
             .addCase(verifyOTP.fulfilled, (state, action) => {
                 state.isLoading = false;
                 state.user = action.payload.user;
-                state.token = action.payload.token;
             })
             .addCase(verifyOTP.rejected, (state, action) => {
                 state.isLoading = false;
@@ -320,7 +315,6 @@ const authSlice = createSlice({
             // Logout
             .addCase(logoutUser.fulfilled, (state) => {
                 state.user = null;
-                state.token = null;
                 state.registrationData = null;
             })
             // Check Auth

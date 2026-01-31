@@ -177,5 +177,16 @@
         "samePassword": "يجب أن تكون كلمة المرور الجديدة مختلفة عن الحالية",
         "userNotFound": "المستخدم غير موجود",
         "currentPasswordIncorrect": "كلمة المرور الحالية غير صحيحة"
+    },
+    "audio": {
+        "analysisDetails": "كشف تحليل صوت القلب عن {{result}}",
+        "resultAbnormal": "غير طبيعي",
+        "resultNormal": "طبيعي",
+        "consultCardiologist": "استشر طبيب القلب",
+        "monitorSymptoms": "راقب الأعراض",
+        "routineCheckup": "ينصح بالفحص الدوري",
+        "analysisFailed": "فشل تحليل الصوت. يرجى المحاولة مرة أخرى.",
+        "noFileProvided": "لم يتم تقديم ملف صوتي",
+        "aiServiceError": "خطأ في خدمة الذكاء الاصطناعي. يرجى المحاولة لاحقاً."
     }
 }

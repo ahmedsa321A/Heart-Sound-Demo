@@ -1,0 +1,7 @@
+tensorflow
+librosa
+fastapi
+uvicorn
+numpy
+scipy
+python-multipart

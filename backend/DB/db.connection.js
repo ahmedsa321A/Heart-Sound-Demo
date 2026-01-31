@@ -5,7 +5,7 @@ export let bucket;
 
 export const dbConnection = async () => {
     try {
-        await mongoose.connect(process.env.DB_URL_LOCAL, { 
+        await mongoose.connect(process.env.DB_URL, { 
             serverSelectionTimeoutMS: 30000 
         });
 

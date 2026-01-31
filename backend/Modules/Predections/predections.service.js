@@ -1,8 +1,8 @@
 import Prediction from '../../DB/predections.model.js';
 import User from '../../DB/User.js';
-import axios from 'axios';
+import aiClient from '../../Services/aiClient.js';
 import FormData from 'form-data';
-import { bucket } from '../../DB/db.connection.js'; 
+import { bucket } from '../../DB/db.connection.js';
 
 
 
@@ -23,18 +23,18 @@ export const createPrediction = async (req, res) => {
             contentType: req.file.mimetype || 'audio/wav'
         });
         uploadStream.end(audioBuffer);
-        const audioId = uploadStream.id; 
+        const audioId = uploadStream.id;
 
         // 2. Prepare to send to Python FastAPI directly from RAM
         const form = new FormData();
         // We pass the buffer directly - no need to download from GridFS!
-        form.append('file', audioBuffer, { 
+        form.append('file', audioBuffer, {
             filename: req.file.originalname,
-            contentType: req.file.mimetype || 'audio/wav' 
+            contentType: req.file.mimetype || 'audio/wav'
         });
 
         // 3. Call the Python AI Service
-        const aiResponse = await axios.post('http://localhost:8000/predict', form, {
+        const aiResponse = await aiClient.post('/predict', form, {
             headers: form.getHeaders(),
         });
 
@@ -58,9 +58,9 @@ export const createPrediction = async (req, res) => {
 
 export const getPredictions = async (req, res) => {
     try {
-        const userId = req.userid;
-        const user = await User.findById(userId);
-        if (!user) {
+        const userId = req.user._id;
+        // The user is already verified by protect middleware, so we don't need to fetch it again just to check existence
+        if (!req.user) {
             return res.status(404).json({ message: 'User not found' });
         }
         const predictions = await Prediction.find({ userId }).sort({ createdAt: -1 });

@@ -114,7 +114,7 @@ Create a `.env` file in the `backend/` directory with the following variables:
 
 ```ini
 PORT=3000
-DB_URL_LOCAL=mongodb://localhost:27017/heart-sound-db
+DB_URL=mongodb://localhost:27017/heart-sound-db
 
 # Email Configuration (Nodemailer)
 # Use a Gmail App Password, NOT your regular password.

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Mic, Square, Loader, CheckCircle, AlertCircle, Activity, FileText } from 'lucide-react';
+import { Mic, Square, Loader, CheckCircle, AlertCircle, Activity } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Button } from '@/components/ui/button';
 import { useAppDispatch, useAppSelector } from '@/store';
@@ -10,6 +10,9 @@ import { WaveformPlayer } from '@/components/ui/waveform-player';
 import { audioBufferToWav } from '@/utils/audioUtils';
 import AlertCard from '@/components/ui/alert-card';
 
+import { historyService } from '@/services/historyService';
+import { HistoryItem } from '@/services/apiTypes';
+
 export function Dashboard() {
     const dispatch = useAppDispatch();
     const { status, analysisResult, audioUrl, error } = useAppSelector((state) => state.recording);
@@ -18,6 +21,19 @@ export function Dashboard() {
     const [recordingTime, setRecordingTime] = useState(0);
     const streamRef = useRef<MediaStream | null>(null);
     const chunksRef = useRef<Blob[]>([]);
+    const [history, setHistory] = useState<HistoryItem[]>([]);
+
+    useEffect(() => {
+        const fetchHistory = async () => {
+            try {
+                const data = await historyService.getHistory();
+                setHistory(data);
+            } catch (err) {
+                console.error("Failed to fetch history", err);
+            }
+        };
+        fetchHistory();
+    }, [status]); // Re-fetch when status changes (e.g. new recording complete)
 
     // Timer
     useEffect(() => {
@@ -240,7 +256,7 @@ export function Dashboard() {
 
                         {status === 'complete' && analysisResult && (
                             <div className="text-center py-8">
-                                {analysisResult.diagnosis === 'Normal Result' ? (
+                                {analysisResult.diagnosis === 'Normal' ? (
                                     <>
                                         <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                                             <CheckCircle className="w-12 h-12 text-green-600" />
@@ -296,17 +312,12 @@ export function Dashboard() {
                             <StatItem
                                 icon={<Activity className="w-5 h-5 text-cyan-600" />}
                                 label={t('dashboard.totalRecordings')}
-                                value="12"
-                            />
-                            <StatItem
-                                icon={<FileText className="w-5 h-5 text-cyan-600" />}
-                                label={t('dashboard.reportsGenerated')}
-                                value="8"
+                                value={history.length.toString()}
                             />
                             <StatItem
                                 icon={<CheckCircle className="w-5 h-5 text-green-600" />}
                                 label={t('dashboard.normalResults')}
-                                value="10"
+                                value={history.filter(h => h.status === 'normal').length.toString()}
                             />
                         </div>
                     </div>
@@ -315,21 +326,16 @@ export function Dashboard() {
                     <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
                         <h3 className="font-semibold text-gray-900 mb-4">{t('dashboard.recentActivity')}</h3>
                         <div className="space-y-3">
-                            <ActivityItem
-                                date="Jan 28, 2026"
-                                result="Normal"
-                                status="normal"
-                            />
-                            <ActivityItem
-                                date="Jan 24, 2026"
-                                result="Normal"
-                                status="normal"
-                            />
-                            <ActivityItem
-                                date="Jan 20, 2026"
-                                result="Attention"
-                                status="attention"
-                            />
+                            {history.length > 0 ? history.slice(0, 4).map((item) => (
+                                <ActivityItem
+                                    key={item.id}
+                                    date={item.date}
+                                    result={item.diagnosis}
+                                    status={item.status}
+                                />
+                            )) : (
+                                <p className="text-sm text-gray-500 text-center py-4">No recent activity</p>
+                            )}
                         </div>
                     </div>
                 </div>

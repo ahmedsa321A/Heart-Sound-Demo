@@ -21,7 +21,7 @@ api.interceptors.response.use(
 
       try {
         // 1. Attempt to refresh
-        await axios.post('http://localhost:3000/auth/refresh', {}, { withCredentials: true });
+        await axios.post(`${import.meta.env.VITE_API_BASE_URL}/auth/refresh`, {}, { withCredentials: true });
 
         // 2. Retry the original request
         return api(originalRequest);

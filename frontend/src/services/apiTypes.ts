@@ -32,7 +32,7 @@ export interface User {
 }
 
 export interface AuthResponse {
-    token: string;
+    token?: string;
     user: User;
     msg: string;
     success: boolean;

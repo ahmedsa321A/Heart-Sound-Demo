@@ -177,5 +177,16 @@
         "samePassword": "New password must be different from current password",
         "userNotFound": "User not found",
         "currentPasswordIncorrect": "Current password is incorrect"
+    },
+    "audio": {
+        "analysisDetails": "Heart sound analysis detected {{result}}",
+        "resultAbnormal": "Abnormal",
+        "resultNormal": "Normal",
+        "consultCardiologist": "Consult a cardiologist",
+        "monitorSymptoms": "Monitor symptoms",
+        "routineCheckup": "Routine checkup recommended",
+        "analysisFailed": "Failed to analyze audio. Please try again.",
+        "noFileProvided": "No audio file provided",
+        "aiServiceError": "AI Service Error. Please try again later."
     }
 }

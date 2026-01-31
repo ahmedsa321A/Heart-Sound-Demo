@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import User from '../DB/User.js';
 import BlacklistedToken from '../DB/blackListToken.model.js';
 
-const protect = async (req, res, next) => {
+export const protect = async (req, res, next) => {
     const token = req.cookies.token;
 
     if (!token) {

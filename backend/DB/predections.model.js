@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const predictionSchema = new mongoose.Schema({
-    patientId: {
+    userId: {
         type: mongoose.Schema.Types.ObjectId,
         required: true,
         ref: 'User' // Assuming there is a User model

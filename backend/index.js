@@ -12,11 +12,13 @@ app.use(cookieParser());
 app.use(express.json());
 
 import authRouter from './Modules/auth_routes.js';
+import predictionRouter from './controllers/predections.controller.js';
 
 app.use("/auth", authRouter);
 //app.use("/users",userRouter);
 //app.use("/predictions",predictionRouter);
 //app.use("/audio",audioRouter);
+app.use("/predections", predictionRouter); 
 
 
 

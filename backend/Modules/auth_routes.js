@@ -1,6 +1,6 @@
 import express from 'express';
 const router = express.Router();
-import { register, verifyOTP, login, logout } from '../controllers/authController.js';
+import { register, verifyOTP, login, logout, resendVerificationOTP } from '../controllers/authController.js';
 import { getProfile } from '../controllers/userController.js';
 import protect from '../middleware/authMiddleware.js';
 import protectRefresh from '../middleware/refresh.middleware.js';
@@ -9,11 +9,12 @@ import { forgotPassword, verifyResetOTP, resetPassword } from '../controllers/au
 import { changePassword } from '../controllers/authController.js';
 
 // Auth Routes
-router.post('/change-password', changePassword);
+router.post('/change-password', protect, changePassword);
 
 
 router.post('/register', register);
 router.post('/verify', verifyOTP);
+router.post('/resend-otp', resendVerificationOTP);
 
 router.post('/login', login);
 router.post('/logout', logout);

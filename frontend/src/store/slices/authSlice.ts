@@ -10,6 +10,7 @@ interface AuthState {
     isLoading: boolean;
     error: string | null;
     registrationData: Partial<RegisterData> | null;
+    isInitialized: boolean;
 }
 
 // Initial State
@@ -19,6 +20,7 @@ const initialState: AuthState = {
     isLoading: false,
     error: null,
     registrationData: null,
+    isInitialized: false,
 };
 
 
@@ -76,7 +78,7 @@ export const updateProfile = createAsyncThunk(
             const response = await profileService.updateProfile(userData as any);
             return response;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Update failed');
+            return rejectWithValue(error.response?.data?.msg || error.response?.data?.message || 'Update failed');
         }
     }
 );
@@ -89,7 +91,7 @@ export const forgotPassword = createAsyncThunk(
             const response = await authService.forgotPassword(email);
             return response;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Failed to process request');
+            return rejectWithValue(error.response?.data?.msg || error.response?.data?.message || 'Failed to process request');
         }
     }
 );
@@ -102,7 +104,7 @@ export const verifyResetOTP = createAsyncThunk(
             const response = await authService.verifyResetOTP(data);
             return response;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Verification failed');
+            return rejectWithValue(error.response?.data?.msg || error.response?.data?.message || 'Verification failed');
         }
     }
 );
@@ -115,7 +117,7 @@ export const resetPassword = createAsyncThunk(
             const response = await authService.resetPassword(newPassword);
             return response;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Reset failed');
+            return rejectWithValue(error.response?.data?.msg || error.response?.data?.message || 'Reset failed');
         }
     }
 );
@@ -128,7 +130,20 @@ export const changePassword = createAsyncThunk(
             const response = await authService.changePassword(data);
             return response;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Change password failed');
+            return rejectWithValue(error.response?.data?.msg || error.response?.data?.message || 'Change password failed');
+        }
+    }
+);
+
+// Resend Verification OTP
+export const resendVerificationOTP = createAsyncThunk(
+    'auth/resendVerificationOTP',
+    async (email: string, { rejectWithValue }) => {
+        try {
+            const response = await authService.resendVerificationOTP(email);
+            return response;
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data?.msg || error.response?.data?.message || 'Failed to resend OTP');
         }
     }
 );
@@ -176,6 +191,9 @@ const authSlice = createSlice({
         setRegistrationData: (state, action: PayloadAction<Partial<RegisterData>>) => {
             state.registrationData = { ...state.registrationData, ...action.payload };
         },
+        clearRegistrationData: (state) => {
+            state.registrationData = null;
+        },
     },
     extraReducers: (builder) => {
         // Login
@@ -188,6 +206,7 @@ const authSlice = createSlice({
                 state.isLoading = false;
                 state.user = action.payload.user;
                 state.token = action.payload.token;
+                state.isInitialized = true;
             })
             .addCase(loginUser.rejected, (state, action) => {
                 state.isLoading = false;
@@ -285,6 +304,19 @@ const authSlice = createSlice({
                 state.error = action.payload as string;
             })
 
+            // Resend Verification OTP
+            .addCase(resendVerificationOTP.pending, (state) => {
+                state.isLoading = true;
+                state.error = null;
+            })
+            .addCase(resendVerificationOTP.fulfilled, (state) => {
+                state.isLoading = false;
+            })
+            .addCase(resendVerificationOTP.rejected, (state, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
+            })
+
             // Logout
             .addCase(logoutUser.fulfilled, (state) => {
                 state.user = null;
@@ -297,14 +329,18 @@ const authSlice = createSlice({
             })
             .addCase(checkAuth.fulfilled, (state, action) => {
                 state.isLoading = false;
+                state.isInitialized = true;
                 state.user = action.payload;
             })
             .addCase(checkAuth.rejected, (state) => {
                 state.isLoading = false;
-                state.user = null;
+                state.isInitialized = true;
+                if (!state.user) {
+                    state.user = null;
+                }
             });
     },
 });
 
-export const { logout, clearError, setRegistrationData } = authSlice.actions;
+export const { logout, clearError, setRegistrationData, clearRegistrationData } = authSlice.actions;
 export default authSlice.reducer;

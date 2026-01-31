@@ -9,6 +9,7 @@ import { forgotPassword, clearError } from '@/store/slices/authSlice';
 import { Loader } from '@/components/ui/loader';
 import AlertCard from '@/components/ui/alert-card';
 import { CheckCircle2 } from 'lucide-react';
+import { getTranslatedMessage } from '@/utils/helper';
 
 export function ForgotPassword() {
     const navigate = useNavigate();
@@ -19,6 +20,7 @@ export function ForgotPassword() {
     const [email, setEmail] = useState('');
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [validationError, setValidationError] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
 
     useEffect(() => {
         dispatch(clearError());
@@ -27,6 +29,7 @@ export function ForgotPassword() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setValidationError('');
+        setSuccessMessage('');
 
         if (!email) {
             setValidationError(t('auth.emailRequired') || 'Email is required');
@@ -41,7 +44,12 @@ export function ForgotPassword() {
 
         const resultAction = await dispatch(forgotPassword(email));
         if (forgotPassword.fulfilled.match(resultAction)) {
-            navigate('/verify-reset-otp', { state: { email } });
+            const payload = resultAction.payload as any;
+            const msg = payload?.msg || t('auth.forgotPasswordSuccess');
+            setSuccessMessage(getTranslatedMessage(msg, t));
+            setTimeout(() => {
+                navigate('/verify-reset-otp', { state: { email } });
+            }, 3000);
         }
     };
 
@@ -65,6 +73,16 @@ export function ForgotPassword() {
                     variant="error"
                     message={error}
                     className="mb-6"
+                    onClose={() => dispatch(clearError())}
+                />
+            )}
+
+            {successMessage && (
+                <AlertCard
+                    variant="success"
+                    message={successMessage}
+                    className="mb-6"
+                    onClose={() => setSuccessMessage('')}
                 />
             )}
 

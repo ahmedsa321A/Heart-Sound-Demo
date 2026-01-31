@@ -5,7 +5,7 @@ import { ChevronLeft } from 'lucide-react';
 import { AuthLayout } from '@/components/layout/auth-layout';
 import { Button } from '@/components/ui/button';
 import { useAppDispatch, useAppSelector } from '@/store';
-import { registerUser } from '@/store/slices/authSlice';
+import { registerUser, setRegistrationData } from '@/store/slices/authSlice';
 import { Loader } from '@/components/ui/loader';
 import { RegisterData } from '@/services/apiTypes';
 import AlertCard from '@/components/ui/alert-card';
@@ -27,11 +27,11 @@ export function RegisterStep2() {
     }, [registrationData, navigate]);
 
     const [formData, setFormData] = useState({
-        familyHistory: '',
-        hypertension: '',
-        diabetes: '',
-        chronicCardiac: [] as string[],
-        renalPathologies: '',
+        familyHistory: registrationData?.familyHistory || '',
+        hypertension: registrationData?.hypertension || '',
+        diabetes: registrationData?.diabetes || '',
+        chronicCardiac: registrationData?.chronicCardiac || [],
+        renalPathologies: registrationData?.renalPathologies || '',
     });
     const [errors, setErrors] = useState<AuthErrors>({});
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -57,13 +57,14 @@ export function RegisterStep2() {
         e.preventDefault();
 
         const newErrors: AuthErrors = {};
-        validateRegisterStep2(formData, newErrors);
+        validateRegisterStep2(formData, newErrors, t);
 
         if (Object.keys(newErrors).length > 0) {
-            setErrors(newErrors);
+            setErrors({ ...newErrors, general: Object.values(newErrors).join('\n') });
             return;
         }
 
+        dispatch(setRegistrationData(formData));
         const fullData = { ...registrationData, ...formData } as RegisterData;
 
         try {
@@ -189,7 +190,10 @@ export function RegisterStep2() {
                     <Button
                         type="button"
                         variant="outline"
-                        onClick={() => navigate('/register')}
+                        onClick={() => {
+                            dispatch(setRegistrationData(formData));
+                            navigate('/register');
+                        }}
                         className="flex-1 py-6 rounded-xl text-lg"
                     >
                         <ChevronLeft className="w-5 h-5 mr-2 rtl:rotate-180" />

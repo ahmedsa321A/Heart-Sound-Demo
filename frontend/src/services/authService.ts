@@ -22,7 +22,7 @@ export const authService = {
             const response = await api.post<ApiResponse>('/auth/logout');
             return response.data;
         } finally {
-            
+
 
         }
     },
@@ -53,6 +53,11 @@ export const authService = {
 
     changePassword: async (data: { currentPassword: string; newPassword: string; confirmPassword: string }): Promise<ApiResponse> => {
         const response = await api.post<ApiResponse>('/auth/change-password', data);
+        return response.data;
+    },
+
+    resendVerificationOTP: async (email: string): Promise<ApiResponse> => {
+        const response = await api.post<ApiResponse>('/auth/resend-otp', { email });
         return response.data;
     }
 };

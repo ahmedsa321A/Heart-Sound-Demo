@@ -276,7 +276,7 @@ export function Dashboard() {
                         {status === 'error' && (
                             <div className="text-center py-8">
                                 <div className="mb-6 flex justify-center">
-                                    <AlertCard title="Error" message={error || 'An unknown error occurred'} />
+                                    <AlertCard title="Error" message={error || 'An unknown error occurred'} onClose={handleReset} />
                                 </div>
                                 <Button variant="outline" onClick={handleReset} className="px-6 py-4 rounded-xl">
                                     {t('dashboard.recordAgain')}

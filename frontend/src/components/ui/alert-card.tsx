@@ -71,7 +71,7 @@ function AlertCard({
                         {title ? (
                             <div className="font-semibold text-sm text-gray-900">{title}</div>
                         ) : null}
-                        <div className="text-sm text-gray-700 mt-1">{message}</div>
+                        <div className="text-sm text-gray-700 mt-1 whitespace-pre-line">{message}</div>
                     </div>
 
                     {dismissible ? (

@@ -6,7 +6,7 @@ import { AuthLayout } from '@/components/layout/auth-layout';
 import { Button } from '@/components/ui/button';
 import FormInput from '@/components/ui/form-input';
 import { useAppDispatch, useAppSelector } from '@/store';
-import { clearError, loginUser } from '@/store/slices/authSlice';
+import { clearError, loginUser, clearRegistrationData } from '@/store/slices/authSlice';
 import { Loader } from '@/components/ui/loader';
 import AlertCard from '@/components/ui/alert-card';
 import { validateLogin, AuthErrors, getTranslatedMessage } from '@/utils/helper';
@@ -27,11 +27,12 @@ export function LoginPage() {
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [localError, setLocalError] = useState<string | null>(null);
 
+    const [isRedirecting, setIsRedirecting] = useState(false);
+
     useEffect(() => {
         dispatch(clearError());
+        dispatch(clearRegistrationData());
     }, [dispatch]);
-
-    // Removed auto-redirect useEffect to handle it in handleSubmit
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -46,15 +47,17 @@ export function LoginPage() {
         setLocalError(null);
 
         const newErrors: AuthErrors = {};
-        validateLogin(formData, newErrors);
+        validateLogin(formData, newErrors, t);
 
         if (Object.keys(newErrors).length > 0) {
             setErrors(newErrors);
+            setLocalError(Object.values(newErrors).join('\n'));
             return;
         }
 
         const resultAction = await dispatch(loginUser(formData));
         if (loginUser.fulfilled.match(resultAction)) {
+            setIsRedirecting(true);
             const successMsg = resultAction.payload.msg || t('auth.loginSuccess') || 'Login successful!';
             setSuccessMessage(successMsg);
             setTimeout(() => {
@@ -141,9 +144,9 @@ export function LoginPage() {
                 <Button
                     type="submit"
                     className="w-full bg-gradient-to-r from-cyan-600 to-teal-600 text-white py-6 rounded-xl hover:from-cyan-700 hover:to-teal-700 transition-all font-medium shadow-lg shadow-cyan-500/30 text-lg"
-                    disabled={isLoading}
+                    disabled={isLoading || isRedirecting}
                 >
-                    {isLoading ? <Loader className="mr-2" /> : t('auth.signIn')}
+                    {isLoading || isRedirecting ? <Loader className="mr-2" /> : t('auth.signIn')}
                 </Button>
             </form>
 

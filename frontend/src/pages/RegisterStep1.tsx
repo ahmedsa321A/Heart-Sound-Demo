@@ -9,6 +9,7 @@ import FormSelect from '@/components/ui/form-select';
 import { useAppDispatch, useAppSelector } from '@/store';
 import { setRegistrationData } from '@/store/slices/authSlice';
 import { validateRegisterStep1, AuthErrors } from '@/utils/helper';
+import AlertCard from '@/components/ui/alert-card';
 
 export function RegisterStep1() {
     const navigate = useNavigate();
@@ -24,6 +25,7 @@ export function RegisterStep1() {
         gender: registrationData?.gender || '',
     });
     const [errors, setErrors] = useState<AuthErrors>({});
+    const [topLevelError, setTopLevelError] = useState<string | null>(null);
 
     const [showPassword, setShowPassword] = useState(false);
 
@@ -32,6 +34,7 @@ export function RegisterStep1() {
         setFormData(prev => ({ ...prev, [name]: value }));
         if (errors[name]) {
             setErrors(prev => ({ ...prev, [name]: undefined }));
+            setTopLevelError(null);
         }
     };
 
@@ -39,10 +42,11 @@ export function RegisterStep1() {
         e.preventDefault();
 
         const newErrors: AuthErrors = {};
-        validateRegisterStep1(formData, newErrors);
+        validateRegisterStep1(formData, newErrors, t);
 
         if (Object.keys(newErrors).length > 0) {
             setErrors(newErrors);
+            setTopLevelError(Object.values(newErrors).join('\n'));
             return;
         }
         const dataToDispatch = {
@@ -76,6 +80,15 @@ export function RegisterStep1() {
                     </div>
                 </div>
             </div>
+
+            {topLevelError && (
+                <AlertCard
+                    variant="error"
+                    message={topLevelError}
+                    className="mb-6"
+                    onClose={() => setTopLevelError(null)}
+                />
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
                 <FormInput

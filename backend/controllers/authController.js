@@ -9,7 +9,7 @@ import { generateAccessToken, generateRefreshToken } from '../utils/generateToke
 import RefreshToken from '../DB/refreshToken.model.js';
 import { hashToken } from '../utils/hashToken.utils.js';
 import BlacklistedToken from '../DB/blackListToken.model.js';
-import { getOtpEmailTemplate } from '../utils/emailTemplates.js';
+import { getOtpEmailTemplate, getResetPasswordEmailTemplate } from '../utils/emailTemplates.js';
 export const register = async (req, res) => {
     try {
         const { fullName, email, password, age, gender } = req.body;
@@ -121,6 +121,50 @@ export const verifyOTP = async (req, res) => {
     }
 };
 
+export const resendVerificationOTP = async (req, res) => {
+    try {
+        const { email } = req.body;
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
+
+        if (user.isVerified) {
+            return res.status(400).json({ msg: 'User already verified' });
+        }
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpExpires = Date.now() + 10 * 60 * 1000;
+
+        user.otp = otp;
+        user.otpExpires = otpExpires;
+        await user.save();
+
+        console.log(`DEV MODE RESEND OTP: ${otp}`);
+
+        const message = `Your new verification code for HeartAi is: ${otp}\n\nIt expires in 10 minutes.`;
+        const html = getOtpEmailTemplate(otp); // Reusing existing template
+
+        try {
+            await sendEmail({
+                email: user.email,
+                subject: 'HeartAi - New Verification Code',
+                message,
+                html
+            });
+            res.status(200).json({ success: true, msg: 'OTP code resent successfully' });
+        } catch (err) {
+            console.error(err);
+            res.status(500).json({ msg: 'Email sending failed' });
+        }
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Server error');
+    }
+};
+
 // @desc    Login User & Get Token
 // @route   POST /api/auth/login
 export const login = async (req, res) => {
@@ -174,8 +218,10 @@ export const login = async (req, res) => {
             success: true,
             user: {
                 id: user._id,
-                name: user.fullName,
-                email: user.email
+                fullName: user.fullName,
+                email: user.email,
+                age: user.age,
+                gender: user.gender
             },
             msg: 'Logged in successfully'
         });
@@ -304,7 +350,7 @@ export const forgotPassword = async (req, res) => {
         console.log(`🔐 DEV MODE - Password Reset OTP for ${email}: ${otp}`);
 
         const message = `Your password reset code for HeartAi is: ${otp}\n\nThis code expires in 10 minutes.\n\nIf you didn't request this, please ignore this email.`;
-        const html = getOtpEmailTemplate(otp);
+        const html = getResetPasswordEmailTemplate(otp);
 
         try {
             await sendEmail({
@@ -434,10 +480,7 @@ export const resetPassword = async (req, res) => {
             });
         }
 
-        // Hash new password
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(newPassword, salt);
-
+        user.password = newPassword;
         user.resetToken = undefined;
         user.resetTokenExpires = undefined;
 
@@ -507,9 +550,10 @@ export const changePassword = async (req, res) => {
             });
         }
 
-        // Hash new password
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(newPassword, salt);
+        // Hash new password - REMOVED (Handled by User model pre-save hook)
+        // const salt = await bcrypt.genSalt(10);
+        // user.password = await bcrypt.hash(newPassword, salt);
+        user.password = newPassword;
 
         await user.save();
 

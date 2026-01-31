@@ -4,9 +4,9 @@ import { RootState } from '@/store';
 import { Loader } from '@/components/ui/loader';
 
 export const ProtectedRoute = () => {
-    const { user, isLoading } = useSelector((state: RootState) => state.auth);
+    const { user, isInitialized } = useSelector((state: RootState) => state.auth);
 
-    if (isLoading) {
+    if (!isInitialized) {
         return <Loader fullScreen />;
     }
 

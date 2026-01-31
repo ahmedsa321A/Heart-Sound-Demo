@@ -5,12 +5,12 @@ import { AuthLayout } from '@/components/layout/auth-layout';
 import { Button } from '@/components/ui/button';
 import FormInput from '@/components/ui/form-input';
 import { useAppDispatch, useAppSelector } from '@/store';
-import { resetPassword } from '@/store/slices/authSlice';
+import { resetPassword, clearError } from '@/store/slices/authSlice';
 import { Loader } from '@/components/ui/loader';
 import AlertCard from '@/components/ui/alert-card';
-import { CheckCircle2 } from 'lucide-react';
+import { getTranslatedMessage, validateResetPassword, AuthErrors } from '@/utils/helper';
 
-export function ResetPassword() {
+export function ResetPasswordPage() {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { isLoading, error } = useAppSelector((state) => state.auth);
@@ -18,61 +18,60 @@ export function ResetPassword() {
 
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
     const [localError, setLocalError] = useState('');
-    const [success, setSuccess] = useState(false);
+    const [errors, setErrors] = useState<AuthErrors>({});
+    const [successMessage, setSuccessMessage] = useState('');
+    const [showPasswords, setShowPasswords] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLocalError('');
+        setSuccessMessage('');
+        setErrors({});
 
-        if (password.length < 8) {
-            setLocalError('Password must be at least 8 characters');
-            return;
-        }
+        const newErrors: AuthErrors = {};
+        validateResetPassword({ password, confirmPassword }, newErrors, t);
 
-        if (password !== confirmPassword) {
-            setLocalError('Passwords do not match');
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            setLocalError(Object.values(newErrors).join('\n'));
             return;
         }
 
         const resultAction = await dispatch(resetPassword(password));
         if (resetPassword.fulfilled.match(resultAction)) {
-            setSuccess(true);
+            const payload = resultAction.payload as any;
+            const message = payload?.msg || payload?.message || t('auth.resetSuccess');
+            setSuccessMessage(getTranslatedMessage(message, t));
+            setTimeout(() => {
+                navigate('/login');
+            }, 3000);
         }
     };
 
-    if (success) {
-        return (
-            <AuthLayout title="Password Reset" subtitle="Your password has been updated">
-                <div className="flex flex-col items-center justify-center py-8 text-center space-y-4">
-                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                        <CheckCircle2 className="w-8 h-8 text-green-600" />
-                    </div>
-                    <AlertCard
-                        variant="success"
-                        title="Success"
-                        message="Your password has been reset successfully."
-                        dismissible={false}
-                    />
-                    <Button onClick={() => navigate('/login')} className="w-full bg-cyan-600 hover:bg-cyan-700 text-white">
-                        Back to Login
-                    </Button>
-                </div>
-            </AuthLayout>
-        );
-    }
-
     return (
         <AuthLayout
-            title="Reset Password"
-            subtitle="Enter your new password"
+            title={t('auth.resetPasswordTitle')}
+            subtitle={t('auth.resetPasswordSubtitle')}
         >
             {(error || localError) && (
                 <AlertCard
                     variant="error"
-                    message={localError || error || ''}
+                    message={getTranslatedMessage(localError || error || '', t)}
                     className="mb-6"
+                    onClose={() => {
+                        setLocalError('');
+                        dispatch(clearError());
+                    }}
+                />
+            )}
+
+            {successMessage && (
+                <AlertCard
+                    variant="success"
+                    message={successMessage}
+                    className="mb-6"
+                    onClose={() => setSuccessMessage('')}
                 />
             )}
 
@@ -80,23 +79,33 @@ export function ResetPassword() {
                 <FormInput
                     id="password"
                     name="password"
-                    label="New Password"
+                    label={t('profile.newPassword')}
                     type="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (errors.password) setErrors({ ...errors, password: undefined });
+                    }}
                     placeholder={t('auth.passwordPlaceholder')}
-                    showPassword={showPassword}
-                    onTogglePassword={() => setShowPassword(!showPassword)}
+                    showPassword={showPasswords}
+                    onTogglePassword={() => setShowPasswords(!showPasswords)}
+                    error={errors.password}
                 />
 
                 <FormInput
                     id="confirmPassword"
                     name="confirmPassword"
-                    label="Confirm New Password"
+                    label={t('profile.confirmNewPassword')}
                     type="password"
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onChange={(e) => {
+                        setConfirmPassword(e.target.value);
+                        if (errors.confirmPassword) setErrors({ ...errors, confirmPassword: undefined });
+                    }}
                     placeholder={t('auth.passwordPlaceholder')}
+                    showPassword={showPasswords}
+                    onTogglePassword={() => setShowPasswords(!showPasswords)}
+                    error={errors.confirmPassword}
                 />
 
                 <Button
@@ -104,7 +113,7 @@ export function ResetPassword() {
                     className="w-full bg-gradient-to-r from-cyan-600 to-teal-600 text-white py-6 rounded-xl hover:from-cyan-700 hover:to-teal-700 transition-all font-medium shadow-lg shadow-cyan-500/30 text-lg"
                     disabled={isLoading}
                 >
-                    {isLoading ? <Loader className="mr-2" /> : "Reset Password"}
+                    {isLoading ? <Loader className="mr-2" /> : t('auth.resetPasswordBtn')}
                 </Button>
             </form>
         </AuthLayout>

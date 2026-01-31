@@ -1,30 +1,54 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft } from 'lucide-react';
 import { AuthLayout } from '@/components/layout/auth-layout';
 import { Button } from '@/components/ui/button';
 import FormInput from '@/components/ui/form-input';
 import { useAppDispatch, useAppSelector } from '@/store';
-import { verifyOTP, clearError } from '@/store/slices/authSlice';
+import { verifyOTP, clearError, resendVerificationOTP } from '@/store/slices/authSlice';
 import { Loader } from '@/components/ui/loader';
 import AlertCard from '@/components/ui/alert-card';
+import { getTranslatedMessage } from '@/utils/helper';
 
 export function VerifyOTPPage() {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { registrationData, isLoading, error } = useAppSelector((state) => state.auth);
     const { t } = useTranslation();
+    const location = useLocation();
 
+    // Get email from Redux OR navigation state
+    const email = registrationData?.email || location.state?.email;
+
+    const [timer, setTimer] = useState(30);
     const [otp, setOtp] = useState('');
     const [localError, setLocalError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!registrationData?.email) {
+        if (!registrationData?.email && !location.state?.email) {
             navigate('/register');
         }
-    }, [registrationData, navigate]);
+    }, [registrationData, location.state, navigate]);
+
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (timer > 0) {
+            interval = setInterval(() => {
+                setTimer((prev) => prev - 1);
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [timer]);
+
+    const handleResend = async () => {
+        if (timer > 0 || !email) return;
+
+        await dispatch(resendVerificationOTP(email));
+        setTimer(30);
+        setSuccessMessage(t('auth.otpResent'));
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -35,15 +59,17 @@ export function VerifyOTPPage() {
             return;
         }
 
-        if (!registrationData?.email) return;
+        if (!email) return;
 
         const resultAction = await dispatch(verifyOTP({
-            email: registrationData.email,
+            email: email,
             otp
         }));
 
         if (verifyOTP.fulfilled.match(resultAction)) {
-            setSuccessMessage(t('auth.verifiedSuccess') || 'Account verified successfully!');
+            const payload = resultAction.payload as any;
+            const message = payload?.msg || payload?.message || t('auth.verifiedSuccess');
+            setSuccessMessage(getTranslatedMessage(message, t));
             setTimeout(() => {
                 navigate('/login');
             }, 3000);
@@ -99,12 +125,16 @@ export function VerifyOTPPage() {
                     variant="error"
                     message={getErrorMessage()}
                     className="mb-6"
+                    onClose={() => {
+                        setLocalError(null);
+                        dispatch(clearError());
+                    }}
                 />
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="bg-blue-50 p-4 rounded-lg text-sm text-blue-700 mb-6">
-                    {t('auth.codeSentTo')} <strong>{registrationData?.email}</strong>.
+                    {t('auth.codeSentTo')} <strong>{email}</strong>.
                 </div>
 
                 <FormInput
@@ -119,23 +149,41 @@ export function VerifyOTPPage() {
                     required
                 />
 
-                <div className="flex gap-4 pt-4">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => navigate('/register/step-2')}
-                        className="flex-1 py-6 rounded-xl text-lg"
-                    >
-                        <ChevronLeft className="w-5 h-5 mr-2 rtl:rotate-180" />
-                        {t('common.back')}
-                    </Button>
-                    <Button
-                        type="submit"
-                        disabled={isLoading}
-                        className="flex-1 bg-gradient-to-r from-cyan-600 to-teal-600 text-white py-6 rounded-xl hover:from-cyan-700 hover:to-teal-700 transition-all font-medium shadow-lg shadow-cyan-500/30 text-lg"
-                    >
-                        {isLoading ? <Loader className="mr-2" /> : t('auth.verifyBtn')}
-                    </Button>
+                <div className="flex flex-col gap-4">
+                    <div className="flex gap-4">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => navigate('/register/step-2')}
+                            className="flex-1 py-6 rounded-xl text-lg"
+                        >
+                            <ChevronLeft className="w-5 h-5 mr-2 rtl:rotate-180" />
+                            {t('common.back')}
+                        </Button>
+                        <Button
+                            type="submit"
+                            disabled={isLoading}
+                            className="flex-1 bg-gradient-to-r from-cyan-600 to-teal-600 text-white py-6 rounded-xl hover:from-cyan-700 hover:to-teal-700 transition-all font-medium shadow-lg shadow-cyan-500/30 text-lg"
+                        >
+                            {isLoading ? <Loader className="mr-2" /> : t('auth.verifyBtn')}
+                        </Button>
+                    </div>
+
+                    <div className="text-center">
+                        <button
+                            type="button"
+                            onClick={handleResend}
+                            disabled={timer > 0 || isLoading}
+                            className={`text-sm font-medium transition-colors ${timer > 0
+                                ? 'text-gray-400 cursor-not-allowed'
+                                : 'text-cyan-600 hover:text-cyan-700 cursor-pointer'
+                                }`}
+                        >
+                            {timer > 0
+                                ? `${t('auth.resendIn')} ${timer}s`
+                                : t('auth.resendOTP')}
+                        </button>
+                    </div>
                 </div>
             </form>
         </AuthLayout>

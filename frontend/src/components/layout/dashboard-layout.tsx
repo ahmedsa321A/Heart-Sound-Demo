@@ -14,7 +14,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
     const handleLogout = async () => {
         await dispatch(logoutUser());
-        navigate('/login');
+        navigate('/');
     };
 
     return (

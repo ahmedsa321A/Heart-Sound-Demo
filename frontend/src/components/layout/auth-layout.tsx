@@ -21,7 +21,7 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
                     {isRTL ? <ArrowRight /> : <ArrowLeft />}
                 </button>
                 <LanguageSwitcher />
-                
+
             </div>
 
             <div className="w-full max-w-5xl grid md:grid-cols-2 gap-8 items-center">

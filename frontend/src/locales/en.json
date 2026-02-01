@@ -45,7 +45,9 @@
         "reviewRecording": "Review your Recording",
         "clickToListen": "Click the play button to listen to your recording clearly before submitting.",
         "discard": "Discard & Record Again",
-        "submitAnalysis": "Submit for Analysis"
+        "submitAnalysis": "Submit for Analysis",
+        "noRecentActivity": "No recent activity",
+        "heartSoundRecording": "Heart sound recording"
     },
     "auth": {
         "createAccount": "Create Account",

@@ -45,7 +45,9 @@
         "reviewRecording": "راجع تسجيلك",
         "clickToListen": "اضغط على زر التشغيل للاستماع إلى تسجيلك بوضوح قبل الإرسال.",
         "discard": "تجاهل وسجل مرة أخرى",
-        "submitAnalysis": "إرسال للتحليل"
+        "submitAnalysis": "إرسال للتحليل",
+        "noRecentActivity": "لا يوجد نشاط حديث",
+        "heartSoundRecording": "تسجيل صوت القلب"
     },
     "auth": {
         "createAccount": "إنشاء حساب",

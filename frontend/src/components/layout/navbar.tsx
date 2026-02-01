@@ -1,4 +1,5 @@
-import { Heart, User, LogOut } from 'lucide-react';
+import { User, LogOut } from 'lucide-react';
+import logo from '@/assets/logo.png';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '@/components/ui/language-switcher';
 import { Button } from '@/components/ui/button';
@@ -20,9 +21,7 @@ export function Navbar({ onLogout, userName, isAuthenticated = false, transparen
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-16">
                     <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
-                        <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-xl flex items-center justify-center">
-                            <Heart className="w-6 h-6 text-white" fill="white" />
-                        </div>
+                        <img src={logo} alt="HeartAI" className="w-20 h-20 object-contain" />
                         <span className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
                             {t('common.heartAI')}
                         </span>

@@ -164,7 +164,7 @@ export function Dashboard() {
                                             <img
                                                 src={instructionImage}
                                                 alt="Placement Instruction"
-                                                className="w-full rounded-lg shadow-md border-2 border-white"
+                                                className="w-full rounded-lg shadow-sm"
                                             />
                                         </div>
                                     </div>
@@ -334,7 +334,7 @@ export function Dashboard() {
                                     status={item.status}
                                 />
                             )) : (
-                                <p className="text-sm text-gray-500 text-center py-4">No recent activity</p>
+                                <p className="text-sm text-gray-500 text-center py-4">{t('dashboard.noRecentActivity')}</p>
                             )}
                         </div>
                     </div>
@@ -377,17 +377,21 @@ function StatItem({ icon, label, value }: { icon: React.ReactNode; label: string
 }
 
 function ActivityItem({ date, result, status }: { date: string; result: string; status: 'normal' | 'attention' }) {
+    const { t, i18n } = useTranslation();
+    const formattedDate = new Date(date).toLocaleDateString(i18n.language);
+    const translatedResult = result === 'Normal' ? t('audio.resultNormal') : t('audio.resultAbnormal');
+
     return (
         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
             <div>
-                <p className="text-sm font-medium text-gray-900">{date}</p>
-                <p className="text-xs text-gray-500">Heart sound recording</p>
+                <p className="text-sm font-medium text-gray-900">{formattedDate}</p>
+                <p className="text-xs text-gray-500">{t('dashboard.heartSoundRecording')}</p>
             </div>
             <span className={`px-3 py-1 rounded-full text-xs font-medium ${status === 'normal'
                 ? 'bg-green-100 text-green-700'
                 : 'bg-amber-100 text-amber-700'
                 }`}>
-                {result}
+                {translatedResult}
             </span>
         </div>
     );

@@ -9,7 +9,7 @@ export const historyService = {
 
         return backendData.map((item: any) => ({
             id: item._id,
-            date: new Date(item.createdAt).toLocaleDateString(),
+            date: item.createdAt, // Return raw date for formatting in UI
             diagnosis: item.predictionResult,
             status: item.predictionResult === 'Normal' ? 'normal' : 'attention',
             audioUrl: '', // Add if available
@@ -21,7 +21,7 @@ export const historyService = {
         const item = response.data;
         return {
             id: item._id,
-            date: new Date(item.createdAt).toLocaleDateString(),
+            date: item.createdAt,
             diagnosis: item.predictionResult,
             status: item.predictionResult === 'Normal' ? 'normal' : 'attention',
             audioUrl: '',

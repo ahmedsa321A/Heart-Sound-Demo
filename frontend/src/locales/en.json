@@ -47,7 +47,10 @@
         "discard": "Discard & Record Again",
         "submitAnalysis": "Submit for Analysis",
         "noRecentActivity": "No recent activity",
-        "heartSoundRecording": "Heart sound recording"
+        "heartSoundRecording": "Heart sound recording",
+        "analysisReport": "Analysis Report",
+        "confidenceScore": "Confidence Score",
+        "recommendations": "Recommendations"
     },
     "auth": {
         "createAccount": "Create Account",
@@ -134,7 +137,8 @@
         "resetPasswordSubtitle": "Enter your new password below",
         "resetPasswordBtn": "Reset Password",
         "resetSuccess": "Password reset successfully. You can now login with your new password.",
-        "serverErrorGeneric": "An unexpected error occurred. Please try again later."
+        "serverErrorGeneric": "An unexpected error occurred. Please try again later.",
+        "otpVerifiedReset": "OTP verified successfully. Redirecting to password reset..."
     },
     "profile": {
         "title": "User Profile",

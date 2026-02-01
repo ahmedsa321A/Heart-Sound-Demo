@@ -6,7 +6,7 @@ import { ForgotPassword } from '@/pages/ForgotPassword';
 import { RegisterStep1 } from '@/pages/RegisterStep1';
 import { RegisterStep2 } from '@/pages/RegisterStep2';
 import { VerifyOTPPage } from '@/pages/VerifyOTPPage';
-import { VerifyResetOTP } from '@/pages/VerifyResetOTPPage';
+
 import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
 import { Dashboard } from '@/pages/Dashboard';
 import { ProfilePage } from '@/pages/ProfilePage';
@@ -45,10 +45,7 @@ export const router = createBrowserRouter([
                         path: "verify-otp",
                         element: <VerifyOTPPage />,
                     },
-                    {
-                        path: "verify-reset-otp",
-                        element: <VerifyResetOTP />,
-                    },
+
                     {
                         path: "reset-password",
                         element: <ResetPasswordPage />,

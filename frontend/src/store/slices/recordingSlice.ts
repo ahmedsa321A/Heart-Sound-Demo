@@ -29,7 +29,7 @@ export const analyzeAudio = createAsyncThunk(
         } catch (error: any) {
             const backendMessage = error.response?.data?.message;
             let errorMessage = i18n.t('audio.analysisFailed');
-
+            
             if (backendMessage === 'No audio file provided') {
                 errorMessage = i18n.t('audio.noFileProvided');
             } else if (backendMessage === 'AI Service Error') {
@@ -39,17 +39,8 @@ export const analyzeAudio = createAsyncThunk(
             } else if (backendMessage === 'Server Error') {
                 errorMessage = i18n.t('auth.serverError');
             } else if (backendMessage) {
-                // Fallback: Use the message from backend if it's not mapped, 
-                // but ideally populate the map as we find more errors.
-                // or just leave it to the generic fail.
-                // For now, let's append it to generic fail if it's unknown?
-                // No, standard generic fail is better for unknown errors in production usually, 
-                // unless we trust backend to send user-facing English strings that we can't translate easily.
-                // Let's stick to the generic one or the specific ones.
-                // Actually, reusing the logic: if we have a backend message, maybe it *is* the key?
-                // No, it's "No audio file provided".
+                errorMessage = backendMessage;
             }
-
             return rejectWithValue(errorMessage);
         }
     }

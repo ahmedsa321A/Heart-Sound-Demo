@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Mic, Square, Loader, CheckCircle, AlertCircle, Activity } from 'lucide-react';
+import { Mic, Square, Loader, CheckCircle, AlertCircle, Activity, Eye } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Button } from '@/components/ui/button';
 import { useAppDispatch, useAppSelector } from '@/store';
@@ -11,7 +11,15 @@ import { audioBufferToWav } from '@/utils/audioUtils';
 import AlertCard from '@/components/ui/alert-card';
 
 import { historyService } from '@/services/historyService';
-import { HistoryItem } from '@/services/apiTypes';
+import { HistoryItem, AnalysisResponse, DashboardStatsResponse } from '@/services/apiTypes';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from "@/components/ui/dialog";
+import i18n from '@/i18n';
 
 export function Dashboard() {
     const dispatch = useAppDispatch();
@@ -21,19 +29,40 @@ export function Dashboard() {
     const [recordingTime, setRecordingTime] = useState(0);
     const streamRef = useRef<MediaStream | null>(null);
     const chunksRef = useRef<Blob[]>([]);
-    const [history, setHistory] = useState<HistoryItem[]>([]);
+
+    // Dashboard Stats State
+    const [statsData, setStatsData] = useState<DashboardStatsResponse | null>(null);
+    const [selectedReport, setSelectedReport] = useState<AnalysisResponse | null>(null);
 
     useEffect(() => {
-        const fetchHistory = async () => {
+        const fetchStats = async () => {
             try {
-                const data = await historyService.getHistory();
-                setHistory(data);
+                const data = await historyService.getDashboardStats();
+                setStatsData(data);
             } catch (err) {
-                console.error("Failed to fetch history", err);
+                console.error("Failed to fetch dashboard stats", err);
             }
         };
-        fetchHistory();
-    }, [status]); // Re-fetch when status changes (e.g. new recording complete)
+        fetchStats();
+    }, [status]); 
+
+    const generateReportFromHistory = (item: HistoryItem): AnalysisResponse => {
+        const resultKey = item.diagnosis === 'Abnormal' ? 'audio.resultAbnormal' : 'audio.resultNormal';
+        const translatedResult = t(resultKey);
+
+        return {
+            id: item.id,
+            diagnosis: item.diagnosis,
+            confidence: item.confidence || 0,
+            createdAt: item.date,
+            audioUrl: item.audioUrl || '',
+            details: t('audio.analysisDetails', { result: translatedResult }),
+            severity: item.diagnosis === 'Abnormal' ? 'high' : 'low',
+            recommendations: item.diagnosis === 'Abnormal'
+                ? [t('audio.consultCardiologist'), t('audio.monitorSymptoms')]
+                : [t('audio.routineCheckup')]
+        };
+    };
 
     // Timer
     useEffect(() => {
@@ -47,8 +76,6 @@ export function Dashboard() {
         }
         return () => clearInterval(timer);
     }, [status]);
-
-
 
     const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
 
@@ -136,8 +163,6 @@ export function Dashboard() {
                 <div className="lg:col-span-2">
                     <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100 h-full">
                         <h2 className="text-2xl font-bold text-gray-900 mb-6">{t('dashboard.recordTitle')}</h2>
-
-
 
                         {status === 'idle' && (
                             <>
@@ -279,10 +304,13 @@ export function Dashboard() {
                                 )}
 
                                 <div className="flex gap-4 justify-center">
-                                    <Button variant="outline" onClick={handleReset} className="px-6 py-6 rounded-xl">
+                                    <Button variant="outline" onClick={handleReset} className="px-6 py-6 rounded-xl cursor-pointer">
                                         {t('dashboard.recordAgain')}
                                     </Button>
-                                    <Button className="px-6 py-6 bg-gradient-to-r from-cyan-600 to-teal-600 rounded-xl">
+                                    <Button
+                                        className="px-6 py-6 bg-gradient-to-r from-cyan-600 to-teal-600 rounded-xl cursor-pointer hover:shadow-lg transition-all"
+                                        onClick={() => setSelectedReport(analysisResult)}
+                                    >
                                         {t('dashboard.viewReport')}
                                     </Button>
                                 </div>
@@ -312,12 +340,12 @@ export function Dashboard() {
                             <StatItem
                                 icon={<Activity className="w-5 h-5 text-cyan-600" />}
                                 label={t('dashboard.totalRecordings')}
-                                value={history.length.toString()}
+                                value={statsData?.stats.totalRecordings?.toString() || "0"}
                             />
                             <StatItem
                                 icon={<CheckCircle className="w-5 h-5 text-green-600" />}
                                 label={t('dashboard.normalResults')}
-                                value={history.filter(h => h.status === 'normal').length.toString()}
+                                value={statsData?.stats.normalResults?.toString() || "0"}
                             />
                         </div>
                     </div>
@@ -326,12 +354,11 @@ export function Dashboard() {
                     <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
                         <h3 className="font-semibold text-gray-900 mb-4">{t('dashboard.recentActivity')}</h3>
                         <div className="space-y-3">
-                            {history.length > 0 ? history.slice(0, 4).map((item) => (
+                            {statsData?.recentActivity && statsData.recentActivity.length > 0 ? statsData.recentActivity.map((item) => (
                                 <ActivityItem
                                     key={item.id}
-                                    date={item.date}
-                                    result={item.diagnosis}
-                                    status={item.status}
+                                    item={item}
+                                    onViewReport={() => setSelectedReport(generateReportFromHistory(item))}
                                 />
                             )) : (
                                 <p className="text-sm text-gray-500 text-center py-4">{t('dashboard.noRecentActivity')}</p>
@@ -340,6 +367,80 @@ export function Dashboard() {
                     </div>
                 </div>
             </div>
+
+            {/* Analysis Report Dialog - Reused for both main view and history */}
+            <Dialog open={!!selectedReport} onOpenChange={(open) => !open && setSelectedReport(null)}>
+                <DialogContent className="sm:max-w-md">
+                    {selectedReport && (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                                    <Activity className="w-5 h-5 text-cyan-600" />
+                                    {t('dashboard.analysisReport')}
+                                </DialogTitle>
+                                <DialogDescription className="text-gray-500">
+                                    {new Date(selectedReport.createdAt).toLocaleString(i18n.language)}
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            <div className="space-y-6 py-4">
+                                {/* Diagnosis Badge */}
+                                <div className="flex justify-center">
+                                    <span className={`px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 ${selectedReport.diagnosis === 'Normal'
+                                        ? 'bg-green-100 text-green-700'
+                                        : 'bg-amber-100 text-amber-700'
+                                        }`}>
+                                        {selectedReport.diagnosis === 'Normal' ? (
+                                            <CheckCircle className="w-4 h-4" />
+                                        ) : (
+                                            <AlertCircle className="w-4 h-4" />
+                                        )}
+                                        {selectedReport.diagnosis === 'Normal' ? t('dashboard.normalResult') : t('dashboard.needsAttention')}
+                                    </span>
+                                </div>
+
+                                {/* Score */}
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-center text-sm font-medium">
+                                        <span className="text-gray-600">{t('dashboard.confidenceScore')}</span>
+                                        <span className={`font-bold ${selectedReport.diagnosis === 'Normal' ? 'text-green-700' : 'text-amber-700'}`}>
+                                            {(selectedReport.confidence * 100).toFixed(1)}%
+                                        </span>
+                                    </div>
+                                    <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                                        <div
+                                            className={`h-full rounded-full transition-all duration-500 ${selectedReport.diagnosis === 'Normal' ? 'bg-green-600' : 'bg-amber-600'}`}
+                                            style={{ width: `${selectedReport.confidence * 100}%` }}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Details */}
+                                <div className="bg-gray-50 p-4 rounded-lg">
+                                    <p className="text-gray-700 text-sm leading-relaxed">
+                                        {selectedReport.details}
+                                    </p>
+                                </div>
+
+                                {/* Recommendations */}
+                                {selectedReport.recommendations && selectedReport.recommendations.length > 0 && (
+                                    <div className="space-y-2">
+                                        <h4 className="font-semibold text-gray-900 text-sm">{t('dashboard.recommendations')}</h4>
+                                        <ul className="space-y-2">
+                                            {selectedReport.recommendations.map((rec, idx) => (
+                                                <li key={idx} className="flex gap-2 text-sm text-gray-600 items-start">
+                                                    <span className="w-1.5 h-1.5 bg-cyan-600 rounded-full mt-1.5 shrink-0" />
+                                                    {rec}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+                        </>
+                    )}
+                </DialogContent>
+            </Dialog>
         </DashboardLayout>
     );
 }
@@ -376,23 +477,32 @@ function StatItem({ icon, label, value }: { icon: React.ReactNode; label: string
     );
 }
 
-function ActivityItem({ date, result, status }: { date: string; result: string; status: 'normal' | 'attention' }) {
+function ActivityItem({ item, onViewReport }: { item: HistoryItem; onViewReport: () => void }) {
     const { t, i18n } = useTranslation();
-    const formattedDate = new Date(date).toLocaleDateString(i18n.language);
-    const translatedResult = result === 'Normal' ? t('audio.resultNormal') : t('audio.resultAbnormal');
+    const formattedDate = new Date(item.date).toLocaleDateString(i18n.language);
+    const translatedResult = item.diagnosis === 'Normal' ? t('audio.resultNormal') : t('audio.resultAbnormal');
 
     return (
-        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl group hover:bg-gray-100 transition-colors">
             <div>
                 <p className="text-sm font-medium text-gray-900">{formattedDate}</p>
                 <p className="text-xs text-gray-500">{t('dashboard.heartSoundRecording')}</p>
             </div>
-            <span className={`px-3 py-1 rounded-full text-xs font-medium ${status === 'normal'
-                ? 'bg-green-100 text-green-700'
-                : 'bg-amber-100 text-amber-700'
-                }`}>
-                {translatedResult}
-            </span>
+            <div className="flex items-center gap-3">
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${item.status === 'normal'
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-amber-100 text-amber-700'
+                    }`}>
+                    {translatedResult}
+                </span>
+                <button
+                    onClick={onViewReport}
+                    className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition-all cursor-pointer"
+                    title={t('dashboard.viewReport')}
+                >
+                    <Eye className="w-4 h-4" />
+                </button>
+            </div>
         </div>
     );
 }

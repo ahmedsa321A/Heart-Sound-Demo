@@ -9,12 +9,12 @@ export interface RegisterData {
     fullName: string;
     email: string;
     password?: string;
-    age?: number;
-    gender?: string;
-    familyHistory?: string;
-    hypertension?: string;
-    diabetes?: string;
-    renalPathologies?: string;
+    age: number;
+    gender: string;
+    familyHistory: string;
+    hypertension: string;
+    diabetes: string;
+    renalPathologies: string;
     chronicCardiac?: string[];
 }
 
@@ -32,7 +32,6 @@ export interface User {
 }
 
 export interface AuthResponse {
-    token?: string;
     user: User;
     msg: string;
     success: boolean;
@@ -41,14 +40,6 @@ export interface AuthResponse {
 export interface VerifyOtpData {
     email: string;
     otp: string;
-}
-
-// Profile Types
-export interface UserProfile extends User {
-    avatar?: string;
-    phoneNumber?: string;
-    address?: string;
-    dateOfBirth?: string;
 }
 
 // Analysis Types
@@ -73,6 +64,15 @@ export interface HistoryItem {
     diagnosis: string;
     status: 'normal' | 'attention';
     audioUrl?: string; // Optional if we don't always load the audio for list items
+    confidence?: number; // Added for detailed report
+}
+
+export interface DashboardStatsResponse {
+    recentActivity: HistoryItem[];
+    stats: {
+        totalRecordings: number;
+        normalResults: number;
+    };
 }
 
 export interface ForgotPasswordData {

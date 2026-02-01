@@ -56,21 +56,31 @@ export const createPrediction = async (req, res) => {
 };
 
 
-export const getPredictions = async (req, res) => {
+
+export const getDashboardStats = async (req, res) => {
     try {
         const userId = req.user._id;
-        // The user is already verified by protect middleware, so we don't need to fetch it again just to check existence
+
         if (!req.user) {
             return res.status(404).json({ message: 'User not found' });
         }
-        const predictions = await Prediction.find({ userId }).sort({ createdAt: -1 });
-        res.status(200).json(predictions);
+
+        // Parallel Execution
+        const [totalRecordings, normalResults, recentActivity] = await Promise.all([
+            Prediction.countDocuments({ userId }),
+            Prediction.countDocuments({ userId, predictionResult: 'Normal' }),
+            Prediction.find({ userId }).sort({ createdAt: -1 }).limit(4)
+        ]);
+
+        res.status(200).json({
+            recentActivity,
+            stats: {
+                totalRecordings,
+                normalResults
+            }
+        });
     } catch (error) {
-        console.error('Error fetching predictions:', error);
+        console.error('Error fetching dashboard stats:', error);
         res.status(500).json({ message: 'Server Error' });
     }
 };
-
-
-
-

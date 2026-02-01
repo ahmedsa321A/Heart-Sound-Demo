@@ -73,7 +73,7 @@ export function RegisterStep2() {
             if (registerUser.fulfilled.match(resultAction)) {
                 setSuccessMessage(t('auth.registrationSuccess'));
                 setTimeout(() => {
-                    navigate('/verify-otp');
+                    navigate('/verify-otp', { state: { email: registrationData?.email, mode: 'register' } });
                 }, 3000);
             } else {
                 if (registerUser.rejected.match(resultAction)) {

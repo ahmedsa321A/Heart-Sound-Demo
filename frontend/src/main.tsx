@@ -5,7 +5,6 @@ import { RouterProvider } from 'react-router-dom';
 import { router } from './router';
 import { store } from './store';
 import './i18n';
-// import App from './App'; // App is now used inside router
 import './styles/index.css';
 import './styles/theme.css';
 

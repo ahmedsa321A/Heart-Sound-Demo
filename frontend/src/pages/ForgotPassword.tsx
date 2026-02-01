@@ -8,7 +8,7 @@ import { useAppDispatch, useAppSelector } from '@/store';
 import { forgotPassword, clearError } from '@/store/slices/authSlice';
 import { Loader } from '@/components/ui/loader';
 import AlertCard from '@/components/ui/alert-card';
-import { CheckCircle2 } from 'lucide-react';
+
 import { getTranslatedMessage } from '@/utils/helper';
 
 export function ForgotPassword() {
@@ -18,7 +18,7 @@ export function ForgotPassword() {
     const { t } = useTranslation();
 
     const [email, setEmail] = useState('');
-    const [isSubmitted, setIsSubmitted] = useState(false);
+
     const [validationError, setValidationError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
 
@@ -48,7 +48,7 @@ export function ForgotPassword() {
             const msg = payload?.msg || t('auth.forgotPasswordSuccess');
             setSuccessMessage(getTranslatedMessage(msg, t));
             setTimeout(() => {
-                navigate('/verify-reset-otp', { state: { email } });
+                navigate('/verify-otp', { state: { email, mode: 'reset' } });
             }, 3000);
         }
     };

@@ -47,7 +47,10 @@
         "discard": "تجاهل وسجل مرة أخرى",
         "submitAnalysis": "إرسال للتحليل",
         "noRecentActivity": "لا يوجد نشاط حديث",
-        "heartSoundRecording": "تسجيل صوت القلب"
+        "heartSoundRecording": "تسجيل صوت القلب",
+        "analysisReport": "تقرير التحليل",
+        "confidenceScore": "معدل الثقة",
+        "recommendations": "التوصيات"
     },
     "auth": {
         "createAccount": "إنشاء حساب",
@@ -134,7 +137,8 @@
         "resetPasswordSubtitle": "أدخل كلمة المرور الجديدة أدناه",
         "resetPasswordBtn": "إعادة تعيين كلمة المرور",
         "resetSuccess": "تم إعادة تعيين كلمة المرور بنجاح. يمكنك الآن تسجيل الدخول بكلمة المرور الجديدة.",
-        "serverErrorGeneric": "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى لاحقاً."
+        "serverErrorGeneric": "حدث خطأ غير متوقع. يرجى المحاولة لاحقاً.",
+        "otpVerifiedReset": "تم التحقق من الرمز بنجاح. جاري التوجيه لإعادة تعيين كلمة المرور..."
     },
     "profile": {
         "title": "الملف الشخصي",

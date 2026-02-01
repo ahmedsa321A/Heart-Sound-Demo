@@ -1,20 +1,26 @@
 import api from './api';
-import { HistoryItem } from './apiTypes';
+import { HistoryItem, DashboardStatsResponse } from './apiTypes';
 
 export const historyService = {
-    getHistory: async (): Promise<HistoryItem[]> => {
-        const response = await api.get<any>('/predections/getPredictions');
-        // Check if response.data is the array or response.data.data
-        const backendData = Array.isArray(response.data) ? response.data : response.data.data || [];
+    getDashboardStats: async (): Promise<DashboardStatsResponse> => {
+        const response = await api.get<any>('/predections/dashboard-stats');
+        const data = response.data;
 
-        return backendData.map((item: any) => ({
+        const recentActivity = (data.recentActivity || []).map((item: any) => ({
             id: item._id,
-            date: item.createdAt, // Return raw date for formatting in UI
+            date: item.createdAt,
             diagnosis: item.predictionResult,
             status: item.predictionResult === 'Normal' ? 'normal' : 'attention',
-            audioUrl: '', // Add if available
+            audioUrl: '',
+            confidence: item.predictionScore
         }));
+
+        return {
+            recentActivity,
+            stats: data.stats || { totalRecordings: 0, normalResults: 0 }
+        };
     },
+
 
     getHistoryItem: async (id: string): Promise<HistoryItem> => {
         const response = await api.get<any>(`/predections/getPrediction/${id}`);

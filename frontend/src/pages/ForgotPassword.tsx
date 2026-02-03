@@ -49,7 +49,7 @@ export function ForgotPassword() {
             setSuccessMessage(getTranslatedMessage(msg, t));
             setTimeout(() => {
                 navigate('/verify-otp', { state: { email, mode: 'reset' } });
-            }, 3000);
+            }, 2000);
         }
     };
 

@@ -237,7 +237,7 @@ export function ProfilePage() {
                                     setPasswordFeedback(null);
                                     dispatch(logout());
                                     navigate('/login');
-                                }, 3000);
+                                }, 2000);
                             } else if (changePassword.rejected.match(result)) {
                                 const payload = result.payload as any;
                                 const errorMessage = typeof payload === 'string' ? payload : (payload?.msg || payload?.message || 'Change password failed');

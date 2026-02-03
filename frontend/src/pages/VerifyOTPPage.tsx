@@ -97,9 +97,8 @@ export function VerifyOTPPage() {
                 } else {
                     navigate('/reset-password', { state: { email } });
                 }
-            }, 3000);
+            }, 2000);
         } else if (verifyOTP.rejected.match(resultAction) || verifyResetOTP.rejected.match(resultAction)) {
-            // For rejected actions, payload is usually the error message string (from rejectWithValue)
             const errorPayload = resultAction.payload as string || 'Verification failed';
             setLocalError(errorPayload);
         }
@@ -107,7 +106,6 @@ export function VerifyOTPPage() {
 
     const getErrorMessage = () => {
         const msg = localError || error;
-        // Handle common backend error messages for translation
         if (msg === 'Invalid OTP or OTP has expired') {
             return t('auth.invalidOrExpiredOTP');
         }

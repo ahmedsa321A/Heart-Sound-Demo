@@ -74,7 +74,7 @@ export function RegisterStep2() {
                 setSuccessMessage(t('auth.registrationSuccess'));
                 setTimeout(() => {
                     navigate('/verify-otp', { state: { email: registrationData?.email, mode: 'register' } });
-                }, 3000);
+                }, 2000);
             } else {
                 if (registerUser.rejected.match(resultAction)) {
                     const errorPayload = typeof resultAction.payload === 'string' ? resultAction.payload : 'Unknown error';

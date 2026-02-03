@@ -45,7 +45,7 @@ export function ResetPasswordPage() {
             setSuccessMessage(getTranslatedMessage(message, t));
             setTimeout(() => {
                 navigate('/login');
-            }, 3000);
+            }, 2000);
         }
     };
 

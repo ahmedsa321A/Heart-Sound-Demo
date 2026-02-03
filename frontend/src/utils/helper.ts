@@ -216,7 +216,7 @@ export const getTranslatedMessage = (message: string, t: (key: string) => string
     if (lowerMsg.includes('password reset code sent')) return t('auth.forgotPasswordEmailSent');
     if (lowerMsg.includes('invalid otp or otp has expired')) return t('auth.invalidOrExpiredOTP');
     if (lowerMsg.includes('password reset successful')) return t('auth.resetSuccess');
-    if (lowerMsg.includes('otp verified successfully')) return t('auth.verifiedLogin');
+    if (lowerMsg.includes('otp verified successfully')) return t('auth.otpVerifiedReset');
     if (lowerMsg.includes('invalid or expired otp')) return t('auth.invalidOrExpiredOTP');
 
     // Password Change Errors

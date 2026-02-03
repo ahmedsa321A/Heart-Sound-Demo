@@ -62,7 +62,7 @@ export function LoginPage() {
             setSuccessMessage(successMsg);
             setTimeout(() => {
                 navigate('/dashboard');
-            }, 3000);
+            }, 2000);
         } else if (loginUser.rejected.match(resultAction)) {
             const errorPayload = typeof resultAction.payload === 'string' ? resultAction.payload : t('auth.loginFailed') || 'Login failed';
             setLocalError(errorPayload);

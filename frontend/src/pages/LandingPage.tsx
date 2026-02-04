@@ -4,6 +4,7 @@ import { Activity, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { Navbar } from '@/components/layout/navbar';
+import heroImage from '@/assets/hero-image.jpg';
 
 const fadeInUp = {
     initial: { opacity: 0, y: 20 },
@@ -96,14 +97,14 @@ export function LandingPage() {
                         transition={{ duration: 0.8, delay: 0.2 }}
                         className="relative"
                     >
-                        <div className="relative z-10 bg-white rounded-3xl shadow-2xl p-6 border border-gray-100">
+                        <div className="relative z-10  rounded-3xl shadow-2xl  border">
                             <div className="absolute -top-6 -right-6 w-24 h-24 bg-teal-100 rounded-full blur-2xl opacity-60"></div>
                             <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-cyan-100 rounded-full blur-2xl opacity-60"></div>
 
                             <img
-                                src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&q=80&w=2070"
+                                src={heroImage}
                                 alt="Doctor using digital tablet"
-                                className="rounded-2xl w-full object-cover h-[500px]"
+                                className="rounded-2xl w-full object-cover lg:h-[500px]"
                             />
 
                             {/* Floating Card */}
@@ -111,7 +112,7 @@ export function LandingPage() {
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 1, duration: 0.5 }}
-                                className="absolute bottom-12 left-12 right-12 bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-lg border border-gray-100"
+                                className="absolute bottom-6 left-12 right-12 bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-lg border border-gray-100"
                             >
                                 <div className="flex items-center gap-4">
                                     <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">

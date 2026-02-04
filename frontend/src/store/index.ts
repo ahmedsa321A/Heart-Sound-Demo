@@ -8,6 +8,7 @@ export const store = configureStore({
         auth: authReducer,
         recording: recordingReducer,
     },
+    devTools: import.meta.env.VITE_ENABLE_REDUX_DEVTOOLS === 'true',
 });
 
 export type RootState = ReturnType<typeof store.getState>;

@@ -10,6 +10,15 @@ import RefreshToken from '../DB/refreshToken.model.js';
 import { hashToken } from '../utils/hashToken.utils.js';
 import BlacklistedToken from '../DB/blackListToken.model.js';
 import { getOtpEmailTemplate, getResetPasswordEmailTemplate } from '../utils/emailTemplates.js';
+
+// Centralized cookie configuration
+const isProduction = process.env.NODE_ENV === 'production';
+const getCookieConfig = (maxAge) => ({
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'strict',
+    maxAge
+});
 export const register = async (req, res) => {
     try {
         const { fullName, email, password, age, gender } = req.body;
@@ -22,6 +31,10 @@ export const register = async (req, res) => {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const otpExpires = Date.now() + 10 * 60 * 1000; // Expires in 10 mins
 
+        // Hash OTP before storing (consistent with forgot-password flow)
+        const salt = await bcrypt.genSalt(10);
+        const hashedOTP = await bcrypt.hash(otp, salt);
+
 
 
 
@@ -32,11 +45,11 @@ export const register = async (req, res) => {
                 password,
                 age,
                 gender,
-                otp,
+                otp: hashedOTP,
                 otpExpires
             });
         } else {
-            user.otp = otp;
+            user.otp = hashedOTP;
             user.otpExpires = otpExpires;
             user.password = password;
             user.fullName = fullName;
@@ -67,7 +80,9 @@ export const register = async (req, res) => {
         );
 
 
-        console.log(`DEV MODE OTP: ${otp}`);
+        if (process.env.NODE_ENV !== 'production') {
+            console.log(`DEV MODE OTP: ${otp}`);
+        }
 
 
         const message = `Your verification code for HeartAi is: ${otp}\n\nIt expires in 10 minutes.`;
@@ -99,11 +114,15 @@ export const verifyOTP = async (req, res) => {
 
         const user = await User.findOne({
             email,
-            otp,
             otpExpires: { $gt: Date.now() }
         });
 
-        if (!user) {
+        if (!user || !user.otp) {
+            return res.status(400).json({ msg: 'Invalid OTP or OTP has expired' });
+        }
+
+        const isMatch = await bcrypt.compare(otp, user.otp);
+        if (!isMatch) {
             return res.status(400).json({ msg: 'Invalid OTP or OTP has expired' });
         }
 
@@ -137,11 +156,14 @@ export const resendVerificationOTP = async (req, res) => {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const otpExpires = Date.now() + 10 * 60 * 1000;
 
-        user.otp = otp;
+        const salt = await bcrypt.genSalt(10);
+        user.otp = await bcrypt.hash(otp, salt);
         user.otpExpires = otpExpires;
         await user.save();
 
-        console.log(`DEV MODE RESEND OTP: ${otp}`);
+        if (process.env.NODE_ENV !== 'production') {
+            console.log(`DEV MODE RESEND OTP: ${otp}`);
+        }
 
         const message = `Your new verification code for HeartAi is: ${otp}\n\nIt expires in 10 minutes.`;
         const html = getOtpEmailTemplate(otp); // Reusing existing template
@@ -199,19 +221,8 @@ export const login = async (req, res) => {
         });
 
         // Cookies
-        res.cookie('token', accessToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: 15 * 60 * 1000 // 15 minutes
-        });
-
-        res.cookie('refreshToken', refreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-        });
+        res.cookie('token', accessToken, getCookieConfig(15 * 60 * 1000));
+        res.cookie('refreshToken', refreshToken, getCookieConfig(7 * 24 * 60 * 60 * 1000));
 
         // Response
         res.status(200).json({
@@ -288,19 +299,8 @@ export const refresh = async (req, res) => {
         });
 
         //  Send cookies
-        res.cookie('token', newAccessToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: 15 * 60 * 1000
-        });
-
-        res.cookie('refreshToken', newRefreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: 7 * 24 * 60 * 60 * 1000
-        });
+        res.cookie('token', newAccessToken, getCookieConfig(15 * 60 * 1000));
+        res.cookie('refreshToken', newRefreshToken, getCookieConfig(7 * 24 * 60 * 60 * 1000));
 
         res.status(200).json({
             success: true,
@@ -347,7 +347,9 @@ export const forgotPassword = async (req, res) => {
 
         await user.save();
 
-        console.log(`🔐 DEV MODE - Password Reset OTP for ${email}: ${otp}`);
+        if (process.env.NODE_ENV !== 'production') {
+            console.log(`DEV MODE - Password Reset OTP for ${email}: ${otp}`);
+        }
 
         const message = `Your password reset code for HeartAi is: ${otp}\n\nThis code expires in 10 minutes.\n\nIf you didn't request this, please ignore this email.`;
         const html = getResetPasswordEmailTemplate(otp);
@@ -422,12 +424,7 @@ export const verifyResetOTP = async (req, res) => {
 
         await user.save();
 
-        res.cookie('resetToken', resetToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: 15 * 60 * 1000
-        });
+        res.cookie('resetToken', resetToken, getCookieConfig(15 * 60 * 1000));
 
         res.status(200).json({
             msg: 'OTP verified successfully. You can now reset your password.',

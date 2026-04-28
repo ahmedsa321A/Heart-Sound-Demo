@@ -106,8 +106,6 @@ export const validateRegisterStep2 = ({
     if (!hypertension) errors.hypertension = t('validation.hypertensionRequired');
     if (!diabetes) errors.diabetes = t('validation.diabetesRequired');
     if (!renalPathologies) errors.renalPathologies = t('validation.renalPathologiesRequired');
-    if (!diabetes) errors.diabetes = t('validation.diabetesRequired');
-    if (!renalPathologies) errors.renalPathologies = t('validation.renalPathologiesRequired');
 };
 
 export interface ProfileUpdateProps {

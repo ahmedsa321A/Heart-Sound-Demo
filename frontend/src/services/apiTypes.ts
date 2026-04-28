@@ -31,6 +31,13 @@ export interface User {
     gender: string;
 }
 
+// Extended user type for profile operations
+export interface UserProfile extends User {
+    phoneNumber?: string;
+    address?: string;
+    createdAt?: string;
+}
+
 export interface AuthResponse {
     user: User;
     msg: string;

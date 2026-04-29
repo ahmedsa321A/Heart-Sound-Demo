@@ -1,4 +1,5 @@
 import io
+import keras
 import numpy as np
 import librosa
 from fastapi import FastAPI, File, UploadFile, HTTPException
@@ -28,8 +29,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 MODEL_PATH = BASE_DIR / "Models" / "Mfcc" / "loss_focal_loss_model.h5"
 
 MODEL = load_model(
-        str(MODEL_PATH),
-    custom_objects={'loss': focal_loss(gamma=2.0, alpha=0.5)}
+    str(MODEL_PATH),
+    custom_objects={
+        'loss': focal_loss(gamma=2.0, alpha=0.5),
+        'Dense': lambda **kwargs: keras.layers.Dense(**{k: v for k, v in kwargs.items() if k != 'quantization_config'})
+    }
 )
 print("✓ Model loaded successfully!")
 

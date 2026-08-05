@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../config/app_config.dart';
 import '../providers/auth_provider.dart';
 import '../screens/landing/landing_screen.dart';
 import '../screens/auth/login_screen.dart';
@@ -15,6 +16,20 @@ final routerProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
     initialLocation: '/',
     redirect: (context, state) {
+      // In demo mode: skip all auth, go straight to dashboard
+      if (AppConfig.isDemoMode) {
+        final isLanding = state.matchedLocation == '/';
+        final isDashboard = state.matchedLocation == '/dashboard';
+        final isProfile = state.matchedLocation == '/profile';
+
+        // Allow landing, dashboard, and profile
+        if (isLanding || isDashboard || isProfile) return null;
+
+        // Redirect all other routes (auth screens) to dashboard
+        return '/dashboard';
+      }
+
+      // Production mode: original auth redirect logic
       final authState = ref.read(authProvider);
       if (!authState.isInitialized) return null;
 
@@ -47,6 +62,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/',
         builder: (context, state) => const LandingScreen(),
       ),
+      // Auth routes — kept for production mode
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
@@ -82,6 +98,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
+      // App routes
       GoRoute(
         path: '/dashboard',
         builder: (context, state) => const DashboardScreen(),
@@ -93,12 +110,14 @@ final routerProvider = Provider<GoRouter>((ref) {
     ],
   );
 
-  ref.listen<AuthState>(authProvider, (previous, next) {
-    if (previous?.isAuthenticated != next.isAuthenticated ||
-        previous?.isInitialized != next.isInitialized) {
-      router.refresh();
-    }
-  });
+  if (!AppConfig.isDemoMode) {
+    ref.listen<AuthState>(authProvider, (previous, next) {
+      if (previous?.isAuthenticated != next.isAuthenticated ||
+          previous?.isInitialized != next.isInitialized) {
+        router.refresh();
+      }
+    });
+  }
 
   return router;
 });

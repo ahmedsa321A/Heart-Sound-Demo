@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../config/app_config.dart';
 import '../models/analysis.dart';
 import '../services/audio_service.dart';
+import '../services/demo/local_inference_service.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 /// Recording status enum — mirrors React RecordingStatus type.
@@ -39,11 +41,14 @@ class RecordingState {
   }
 }
 
-/// Recording state notifier — mirrors React recordingSlice.ts
+/// Recording state notifier — supports both demo (local inference) and
+/// production (backend upload) modes.
 class RecordingNotifier extends StateNotifier<RecordingState> {
-  final AudioService _audioService;
+  final AudioService? _audioService;
+  final LocalInferenceService? _localInference;
 
-  RecordingNotifier(this._audioService) : super(const RecordingState());
+  RecordingNotifier(this._audioService, this._localInference)
+      : super(const RecordingState());
 
   void startRecording() {
     state = state.copyWith(
@@ -75,28 +80,41 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
       status: RecordingStatus.analyzing,
       clearError: true,
     );
+
     try {
-      final backendData = await _audioService.uploadAudio(filePath);
-      final diagnosis = backendData['predictionResult'] as String? ?? 'Unknown';
-      final isAbnormal = diagnosis == 'Abnormal';
+      AnalysisResult result;
 
-      final resultKey =
-          isAbnormal ? 'audio.resultAbnormal' : 'audio.resultNormal';
-      final translatedResult = resultKey.tr();
+      if (AppConfig.isDemoMode) {
+        // ─── Demo mode: local on-device inference ───
+        result = await _localInference!.analyzeAudio(filePath);
+      } else {
+        // ─── Production mode: upload to backend (original behavior) ───
+        final backendData = await _audioService!.uploadAudio(filePath);
+        final diagnosis =
+            backendData['predictionResult'] as String? ?? 'Unknown';
+        final isAbnormal = diagnosis == 'Abnormal';
 
-      final result = AnalysisResult(
-        id: backendData['_id'] as String? ?? '',
-        diagnosis: diagnosis,
-        confidence:
-            (backendData['predictionScore'] as num?)?.toDouble() ?? 0.0,
-        createdAt: backendData['createdAt'] as String? ?? '',
-        audioUrl: '',
-        details: 'audio.analysisDetails'.tr(args: [translatedResult]),
-        severity: isAbnormal ? 'high' : 'low',
-        recommendations: isAbnormal
-            ? ['audio.consultCardiologist'.tr(), 'audio.monitorSymptoms'.tr()]
-            : ['audio.routineCheckup'.tr()],
-      );
+        final resultKey =
+            isAbnormal ? 'audio.resultAbnormal' : 'audio.resultNormal';
+        final translatedResult = resultKey.tr();
+
+        result = AnalysisResult(
+          id: backendData['_id'] as String? ?? '',
+          diagnosis: diagnosis,
+          confidence:
+              (backendData['predictionScore'] as num?)?.toDouble() ?? 0.0,
+          createdAt: backendData['createdAt'] as String? ?? '',
+          audioUrl: '',
+          details: 'audio.analysisDetails'.tr(args: [translatedResult]),
+          severity: isAbnormal ? 'high' : 'low',
+          recommendations: isAbnormal
+              ? [
+                  'audio.consultCardiologist'.tr(),
+                  'audio.monitorSymptoms'.tr()
+                ]
+              : ['audio.routineCheckup'.tr()],
+        );
+      }
 
       state = state.copyWith(
         status: RecordingStatus.complete,
@@ -105,7 +123,7 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
     } catch (e) {
       String errorMessage = 'audio.analysisFailed'.tr();
 
-      if (e is Exception) {
+      if (!AppConfig.isDemoMode && e is Exception) {
         try {
           final dynamic dioError = e;
           final backendMessage =
@@ -122,6 +140,9 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
             errorMessage = backendMessage;
           }
         } catch (_) {}
+      } else if (AppConfig.isDemoMode) {
+        // In demo mode, show the actual error for debugging
+        errorMessage = e.toString();
       }
 
       state = state.copyWith(
@@ -132,7 +153,15 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
   }
 }
 
+/// Singleton local inference service for demo mode.
+final localInferenceProvider = Provider<LocalInferenceService>((ref) {
+  return LocalInferenceService();
+});
+
 final recordingProvider =
     StateNotifierProvider<RecordingNotifier, RecordingState>((ref) {
-  return RecordingNotifier(ref.read(audioServiceProvider));
+  if (AppConfig.isDemoMode) {
+    return RecordingNotifier(null, ref.read(localInferenceProvider));
+  }
+  return RecordingNotifier(ref.read(audioServiceProvider), null);
 });

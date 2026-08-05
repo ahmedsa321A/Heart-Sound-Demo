@@ -4,6 +4,11 @@ import 'package:flutter/foundation.dart';
 class AppConfig {
   AppConfig._();
 
+  /// Demo mode flag — set to true for offline APK, false for production.
+  /// When true: no backend, no database, model runs locally on device.
+  /// When false: uses backend API + AI service (original behavior).
+  static const bool isDemoMode = true;
+
   /// Base URL for the backend API.
   static String get apiBaseUrl {
     const fromEnv = String.fromEnvironment('API_BASE_URL');

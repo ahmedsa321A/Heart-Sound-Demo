@@ -102,6 +102,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Future<void> _analyzeAudio(String path) async {
     await ref.read(recordingProvider.notifier).analyzeAudio(path);
     // Refresh stats after successful analysis
+    final result = ref.read(recordingProvider).analysisResult;
+    if (result != null) {
+      ref.read(dashboardStatsProvider.notifier).addDemoResult(result);
+    }
     ref.read(dashboardStatsProvider.notifier).fetchStats();
   }
 

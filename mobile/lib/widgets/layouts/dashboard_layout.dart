@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:easy_localization/easy_localization.dart';
+import '../../config/app_config.dart';
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../common/language_switcher.dart';
@@ -65,7 +66,9 @@ class DashboardLayout extends ConsumerWidget {
                     // Logout button
                     IconButton(
                       onPressed: () async {
-                        await ref.read(authProvider.notifier).logout();
+                        if (!AppConfig.isDemoMode) {
+                          await ref.read(authProvider.notifier).logout();
+                        }
                         if (context.mounted) context.go('/');
                       },
                       icon: const Icon(Icons.logout,

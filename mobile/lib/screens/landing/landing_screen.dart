@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:easy_localization/easy_localization.dart';
+import '../../config/app_config.dart';
 import '../../config/theme.dart';
 import '../../widgets/common/language_switcher.dart';
 
@@ -43,6 +44,30 @@ class LandingScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 24),
+                    // Demo Mode Badge
+                    if (AppConfig.isDemoMode)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.amber100,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: AppTheme.amber600.withOpacity(0.3)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.science, color: AppTheme.amber700, size: 16),
+                            SizedBox(width: 8),
+                            Text('DEMO MODE — Offline',
+                                style: TextStyle(
+                                    color: AppTheme.amber700,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13)),
+                          ],
+                        ),
+                      ),
                     // AI Badge
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -122,7 +147,7 @@ class LandingScreen extends StatelessWidget {
                           ],
                         ),
                         child: ElevatedButton(
-                          onPressed: () => context.push('/register'),
+                          onPressed: () => context.push(AppConfig.isDemoMode ? '/dashboard' : '/register'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.transparent,
                             shadowColor: Colors.transparent,
@@ -212,7 +237,7 @@ class LandingScreen extends StatelessWidget {
                       children: [
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: () => context.push('/login'),
+                            onPressed: () => context.push(AppConfig.isDemoMode ? '/dashboard' : '/login'),
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
@@ -231,7 +256,7 @@ class LandingScreen extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: ElevatedButton(
-                                onPressed: () => context.push('/register'),
+                                onPressed: () => context.push(AppConfig.isDemoMode ? '/dashboard' : '/register'),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.transparent,
                                   shadowColor: Colors.transparent,

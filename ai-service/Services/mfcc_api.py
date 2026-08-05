@@ -12,6 +12,19 @@ from pathlib import Path
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/health")
+async def health():
+    return {"status": "ok", "service": "ai-service"}
+
+
 
 
 
@@ -35,7 +48,7 @@ MODEL = load_model(
         'Dense': lambda **kwargs: keras.layers.Dense(**{k: v for k, v in kwargs.items() if k != 'quantization_config'})
     }
 )
-print("✓ Model loaded successfully!")
+print("[OK] Model loaded successfully!")
 
 ###########################################################
 # CONFIG (MUST MATCH TRAINING!)
@@ -162,9 +175,10 @@ async def predict(file: UploadFile = File(...)):
                 detail="Invalid file format. Please upload WAV, MP3, FLAC, or OGG file."
             )
         
-        # 1. Load audio
+        # 1. Load audio and convert to mono first so len(signal) measures total samples, not stereo channels
         audio_bytes = await file.read()
         signal, orig_sr = librosa.load(io.BytesIO(audio_bytes), sr=None, mono=False)
+        signal = convert_to_mono_if_needed(signal)
         
         # 2. Validate duration
         duration = len(signal) / orig_sr
@@ -174,14 +188,13 @@ async def predict(file: UploadFile = File(...)):
                 detail=f"Audio too long ({duration:.1f}s). Maximum duration is {MAX_DURATION_SEC}s."
             )
         
-        if duration < 0.5:
+        if duration < 0.05:
             raise HTTPException(
                 status_code=400,
-                detail="Audio too short. Minimum duration is 0.5 seconds."
+                detail="Audio file is empty or invalid. Please record audio for at least 1 second."
             )
         
         # 3. Preprocess (EXACT same pipeline as training)
-        signal = convert_to_mono_if_needed(signal)
         signal = remove_dc_offset(signal)
         signal = resample_signal(signal, orig_sr, SR)
         signal = normalize_amplitude(signal)
@@ -261,9 +274,9 @@ if __name__ == "__main__":
     print("\n" + "="*70)
     print("HEART SOUND CLASSIFICATION API")
     print("="*70)
-    print(f"✓ Model loaded: loss_focal_loss_model.h5")
-    print(f"✓ Optimal threshold: {OPTIMAL_THRESHOLD}")
-    print(f"✓ Max recording duration: {MAX_DURATION_SEC}s")
+    print(f"[OK] Model loaded: loss_focal_loss_model.h5")
+    print(f"[OK] Optimal threshold: {OPTIMAL_THRESHOLD}")
+    print(f"[OK] Max recording duration: {MAX_DURATION_SEC}s")
     print("="*70)
     print("\n Starting server on http://localhost:8000")
     print(" API docs available at http://localhost:8000/docs")

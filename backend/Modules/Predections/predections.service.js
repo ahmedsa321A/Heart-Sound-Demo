@@ -50,8 +50,12 @@ export const createPrediction = async (req, res) => {
 
         res.status(201).json(newPrediction);
     } catch (error) {
-        console.error('Error:', error.message);
-        res.status(500).json({ message: 'AI Service Error' });
+        const errorDetail = error.response?.data?.detail || error.message;
+        console.error('AI Service Error details:', errorDetail);
+        res.status(500).json({
+            message: 'AI Service Error',
+            detail: errorDetail
+        });
     }
 };
 

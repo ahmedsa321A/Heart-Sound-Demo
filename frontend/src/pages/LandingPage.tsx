@@ -1,10 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Activity, ChevronRight } from 'lucide-react';
+import { Activity, ChevronRight, FlaskConical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { Navbar } from '@/components/layout/navbar';
 import heroImage from '@/assets/hero-image.jpg';
+import { isDemoMode } from '@/config';
 
 const fadeInUp = {
     initial: { opacity: 0, y: 20 },
@@ -50,6 +51,15 @@ export function LandingPage() {
                         initial="initial"
                         animate="animate"
                     >
+                        {isDemoMode && (
+                            <motion.div
+                                variants={fadeInUp}
+                                className="flex w-fit items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-full text-amber-700 font-semibold text-sm mb-3"
+                            >
+                                <FlaskConical className="w-4 h-4" />
+                                {t('landing.demoMode')}
+                            </motion.div>
+                        )}
                         <motion.div
                             variants={fadeInUp}
                             className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-50 rounded-full text-cyan-700 font-medium text-sm mb-6"
@@ -80,7 +90,7 @@ export function LandingPage() {
                             className="flex flex-col sm:flex-row gap-4"
                         >
                             <Button
-                                onClick={() => navigate('/register')}
+                                onClick={() => navigate(isDemoMode ? '/dashboard' : '/register')}
                                 className="h-14 px-8 text-lg rounded-full bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 shadow-lg shadow-cyan-500/30"
                             >
                                 {t('landing.startFreeAssessment')}

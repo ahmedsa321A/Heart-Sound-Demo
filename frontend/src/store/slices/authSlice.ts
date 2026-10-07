@@ -1,8 +1,14 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 
-import { authService } from '@/services/authService';
-import { profileService } from '@/services/profileService';
+import { authService as apiAuthService } from '@/services/authService';
+import { profileService as apiProfileService } from '@/services/profileService';
+import { demoAuthService, demoProfileService } from '@/services/demo/demoAuthService';
+import { isDemoMode } from '@/config';
 import { User, RegisterData, LoginCredentials } from '@/services/apiTypes';
+
+// Demo mode swaps in a local demo user — no network calls
+const authService = isDemoMode ? demoAuthService : apiAuthService;
+const profileService = isDemoMode ? demoProfileService : apiProfileService;
 
 interface AuthState {
     user: User | null;

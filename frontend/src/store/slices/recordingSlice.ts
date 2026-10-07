@@ -1,5 +1,7 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import { audioService } from '@/services/audioService';
+import { localInferenceService } from '@/services/demo/localInferenceService';
+import { isDemoMode } from '@/config';
 import i18n from '@/i18n';
 
 import { AnalysisResponse } from '@/services/apiTypes';
@@ -24,9 +26,14 @@ export const analyzeAudio = createAsyncThunk(
     'recording/analyze',
     async (audioBlob: Blob, { rejectWithValue }) => {
         try {
-            const result = await audioService.uploadAudio(audioBlob);
-            return result;
+            // Demo mode runs the model in the browser instead of uploading to the backend
+            const service = isDemoMode ? localInferenceService : audioService;
+            return await service.uploadAudio(audioBlob);
         } catch (error: any) {
+            if (isDemoMode) {
+                console.error('Local analysis failed', error);
+                return rejectWithValue(i18n.t('audio.analysisFailed'));
+            }
             const backendMessage = error.response?.data?.message;
             let errorMessage = i18n.t('audio.analysisFailed');
             

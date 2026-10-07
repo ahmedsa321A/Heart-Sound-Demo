@@ -2,6 +2,7 @@ import { Navbar } from './navbar';
 import { useAppDispatch, useAppSelector } from '@/store';
 import { logoutUser } from '@/store/slices/authSlice';
 import { useNavigate } from 'react-router-dom';
+import { isDemoMode } from '@/config';
 
 interface DashboardLayoutProps {
     children: React.ReactNode;
@@ -13,7 +14,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     const { user } = useAppSelector((state) => state.auth);
 
     const handleLogout = async () => {
-        await dispatch(logoutUser());
+        // Demo user can't sign out — just go back to the landing page
+        if (!isDemoMode) {
+            await dispatch(logoutUser());
+        }
         navigate('/');
     };
 

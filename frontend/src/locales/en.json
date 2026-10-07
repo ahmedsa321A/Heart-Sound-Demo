@@ -16,7 +16,8 @@
         "heroDesc": "Advanced AI algorithms analyze your heart sounds in real-time, providing early detection of irregularities with hospital-grade accuracy.",
         "startFreeAssessment": "Start Free Assessment",
         "analysisComplete": "Analysis Complete",
-        "normalSinusRhythm": "Normal Sinus Rhythm Detected"
+        "normalSinusRhythm": "Normal Sinus Rhythm Detected",
+        "demoMode": "Demo Mode — analysis runs entirely in your browser"
     },
     "dashboard": {
         "monitorHealth": "Monitor your cardiac health with AI-powered analysis",
@@ -52,7 +53,12 @@
         "confidenceScore": "Confidence Score",
         "cardiacStatus": "Cardiac Status",
         "healthyRhythm": "Healthy Heart Rhythm Detected",
-        "recommendations": "Recommendations"
+        "recommendations": "Recommendations",
+        "orUpload": "Or upload an audio file (.wav)",
+        "uploadSound": "Upload Sound File",
+        "noiseResult": "Noise / No Heart Sound",
+        "noiseDetected": "Noise Detected",
+        "invalidFileType": "Please select a .wav audio file."
     },
     "auth": {
         "createAccount": "Create Account",
@@ -195,6 +201,15 @@
         "routineCheckup": "Routine checkup recommended",
         "analysisFailed": "Failed to analyze audio. Please try again.",
         "noFileProvided": "No audio file provided",
-        "aiServiceError": "AI Service Error. Please try again later."
+        "aiServiceError": "AI Service Error. Please try again later.",
+        "resultNoise": "Noise / Invalid Sound",
+        "noiseDetails": "No clear heart sound detected. The recording contains environmental noise or irregular sounds.",
+        "placeFirmly": "Press the phone mic firmly against your chest without moving",
+        "quietEnvironment": "Record in a quiet room and avoid speaking or clapping",
+        "removeCover": "Remove thick phone cases to capture acoustic vibrations",
+        "micPermissionDenied": "Microphone permission was denied",
+        "micAccessError": "Error accessing microphone. Please try again.",
+        "failedToSave": "Failed to save audio recording.",
+        "recordingTooShort": "Recording is too short. Please record for at least 1 second."
     }
 }

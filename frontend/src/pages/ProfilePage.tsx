@@ -10,6 +10,7 @@ import AlertCard from '@/components/ui/alert-card';
 import { Navbar } from '@/components/layout/navbar';
 
 import { useNavigate } from 'react-router-dom';
+import { isDemoMode } from '@/config';
 
 import { AuthErrors, validateProfile, validateChangePassword, getTranslatedMessage } from '@/utils/helper';
 
@@ -41,6 +42,11 @@ export function ProfilePage() {
     }, [user]);
 
     const handleLogout = () => {
+        // Demo user can't sign out — just go back to the landing page
+        if (isDemoMode) {
+            navigate('/');
+            return;
+        }
         dispatch(logout());
         navigate('/login');
     };
@@ -204,6 +210,8 @@ export function ProfilePage() {
                         </form>
                     </div>
 
+                    {/* Change password (hidden in demo mode — there is no real account) */}
+                    {!isDemoMode && (
                     <div className="p-8 border-t bg-gray-50/50">
                         <form onSubmit={async (e) => {
                             e.preventDefault();
@@ -330,6 +338,7 @@ export function ProfilePage() {
                             </div>
                         </form>
                     </div>
+                    )}
                 </div>
             </main>
         </div>

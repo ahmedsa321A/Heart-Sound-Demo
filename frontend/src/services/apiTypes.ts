@@ -65,11 +65,13 @@ export interface AnalysisResponse extends AnalysisResultDetails {
 }
 
 // History Types
+export type HistoryStatus = 'normal' | 'attention' | 'noise';
+
 export interface HistoryItem {
     id: string;
     date: string;
     diagnosis: string;
-    status: 'normal' | 'attention';
+    status: HistoryStatus;
     audioUrl?: string; // Optional if we don't always load the audio for list items
     confidence?: number; // Added for detailed report
 }

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '@/components/ui/language-switcher';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import { isDemoMode } from '@/config';
 
 interface NavbarProps {
     onLogout?: () => void;
@@ -31,11 +32,13 @@ export function Navbar({ onLogout, userName, isAuthenticated = false, transparen
 
                         {!isAuthenticated ? (
                             <>
-                                <Button variant="ghost" onClick={() => navigate('/login')} >
-                                    {t('common.signIn')}
-                                </Button>
+                                {!isDemoMode && (
+                                    <Button variant="ghost" onClick={() => navigate('/login')} >
+                                        {t('common.signIn')}
+                                    </Button>
+                                )}
                                 <Button
-                                    onClick={() => navigate('/register')}
+                                    onClick={() => navigate(isDemoMode ? '/dashboard' : '/register')}
                                     className="bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white rounded-full px-6"
                                 >
                                     {t('common.getStarted')}

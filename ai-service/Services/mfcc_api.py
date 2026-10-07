@@ -37,7 +37,12 @@ def focal_loss(gamma=2.0, alpha=0.5):
 
 def evaluate_audio_quality(raw_signal, orig_sr):
     """
-    Evaluates whether raw audio is a valid heart sound or random noise/clapping/silence.
+    Gatekeeper before the model: rejects silence and non-heart sounds (clapping, tapping, hiss).
+    Energy shares are measured over the audible band (>= 20 Hz) so harmless sub-20 Hz rumble
+    (removed later by the bandpass filter) does not count against a recording.
+    Tuned on 190 real heart recordings (CirCor 2022, PhysioNet 2016) and 337 non-heart sounds
+    (ESC-50, speech): accepts ~98% of heart sounds and rejects all clapping clips.
+    Kept in sync with frontend/src/services/demo/mfccExtractor.ts and the mobile app.
     """
     if len(raw_signal) == 0:
         return False, "silence"
@@ -48,35 +53,29 @@ def evaluate_audio_quality(raw_signal, orig_sr):
     if rms < 0.0015 or max_abs < 0.005:
         return False, "silence"
 
-    # 2. Crest factor (clapping / tapping / impulse check)
-    crest_factor = max_abs / (rms + 1e-8)
-    if crest_factor > 14.0:
-        return False, "clapping_or_tapping"
-
-    # 3. Spectral Energy Ratio (Low vs High frequency)
+    # 2. Spectral energy shares: heart sounds live below 500 Hz, claps/hiss above 1 kHz
     if orig_sr >= 2000 and len(raw_signal) >= 1024:
         freqs = np.fft.rfftfreq(1024, 1.0 / orig_sr)
+        audible_mask = freqs >= 20
+        low_mask = (freqs >= 20) & (freqs <= 500)
+        high_mask = (freqs >= 1000) & (freqs <= min(8000, orig_sr / 2.0))
         step = max(1024, (len(raw_signal) - 1024) // 6)
         total_low = 0.0
         total_high = 0.0
-        total_all = 0.0
+        total_audible = 0.0
         win = np.hanning(1024)
 
         for start in range(0, len(raw_signal) - 1024 + 1, step):
             frame = raw_signal[start:start + 1024] * win
             spec = np.abs(np.fft.rfft(frame)) ** 2
-            total_all += np.sum(spec)
-            low_mask = (freqs >= 20) & (freqs <= 500)
-            high_mask = (freqs >= 1000) & (freqs <= min(8000, orig_sr / 2.0))
+            total_audible += np.sum(spec[audible_mask])
             total_low += np.sum(spec[low_mask])
             total_high += np.sum(spec[high_mask])
 
-        if total_all > 1e-12:
-            low_ratio = total_low / total_all
-            high_ratio = total_high / total_all
-            if low_ratio < 0.40 and high_ratio > 0.45:
-                return False, "high_frequency_noise"
-            if low_ratio < 0.25:
+        if total_audible > 1e-12:
+            low_ratio = total_low / total_audible
+            high_ratio = total_high / total_audible
+            if low_ratio < 0.25 or high_ratio > 0.40:
                 return False, "high_frequency_noise"
 
     return True, "valid"

@@ -1,5 +1,6 @@
 import api from './api';
 import { HistoryItem, DashboardStatsResponse } from './apiTypes';
+import { toHistoryStatus } from '@/utils/analysisReport';
 
 export const historyService = {
     getDashboardStats: async (): Promise<DashboardStatsResponse> => {
@@ -10,7 +11,7 @@ export const historyService = {
             id: item._id,
             date: item.createdAt,
             diagnosis: item.predictionResult,
-            status: item.predictionResult === 'Normal' ? 'normal' : 'attention',
+            status: toHistoryStatus(item.predictionResult),
             audioUrl: '',
             confidence: item.predictionScore
         }));
@@ -29,7 +30,7 @@ export const historyService = {
             id: item._id,
             date: item.createdAt,
             diagnosis: item.predictionResult,
-            status: item.predictionResult === 'Normal' ? 'normal' : 'attention',
+            status: toHistoryStatus(item.predictionResult),
             audioUrl: '',
         };
     }

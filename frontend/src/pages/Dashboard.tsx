@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Mic, Square, Loader, CheckCircle, AlertCircle, Activity, Eye } from 'lucide-react';
+import { Mic, Square, Loader, CheckCircle, AlertCircle, Activity, Eye, Upload, AudioWaveform } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Button } from '@/components/ui/button';
 import { useAppDispatch, useAppSelector } from '@/store';
@@ -11,7 +11,10 @@ import { audioBufferToWav } from '@/utils/audioUtils';
 import AlertCard from '@/components/ui/alert-card';
 
 import { historyService } from '@/services/historyService';
-import { HistoryItem, AnalysisResponse, DashboardStatsResponse } from '@/services/apiTypes';
+import { demoHistoryService } from '@/services/demo/demoHistoryService';
+import { HistoryItem, HistoryStatus, AnalysisResponse, DashboardStatsResponse } from '@/services/apiTypes';
+import { buildAnalysisReport, toHistoryStatus } from '@/utils/analysisReport';
+import { isDemoMode, MAX_RECORDING_SECONDS } from '@/config';
 import {
     Dialog,
     DialogContent,
@@ -21,6 +24,66 @@ import {
 } from "@/components/ui/dialog";
 import i18n from '@/i18n';
 
+// Demo mode reads history from the browser instead of the backend
+const statsService = isDemoMode ? demoHistoryService : historyService;
+
+const WAV_MIME_TYPES = ['audio/wav', 'audio/x-wav', 'audio/wave', 'audio/vnd.wave'];
+
+// Visual treatment per result: normal / abnormal (attention) / noise
+const RESULT_UI: Record<HistoryStatus, {
+    Icon: typeof CheckCircle;
+    iconBg: string;
+    iconColor: string;
+    badge: string;
+    panel: string;
+    text: string;
+    emojis: string;
+    titleKey: string;
+    badgeKey: string;
+    statusKey: string;
+    resultKey: string;
+}> = {
+    normal: {
+        Icon: CheckCircle,
+        iconBg: 'bg-green-100',
+        iconColor: 'text-green-600',
+        badge: 'bg-green-100 text-green-700',
+        panel: 'bg-green-50 border-green-100',
+        text: 'text-green-700',
+        emojis: '🟢 💚 😊',
+        titleKey: 'dashboard.normalResult',
+        badgeKey: 'dashboard.normalResult',
+        statusKey: 'dashboard.healthyRhythm',
+        resultKey: 'audio.resultNormal',
+    },
+    attention: {
+        Icon: AlertCircle,
+        iconBg: 'bg-amber-100',
+        iconColor: 'text-amber-600',
+        badge: 'bg-amber-100 text-amber-700',
+        panel: 'bg-amber-50 border-amber-100',
+        text: 'text-amber-700',
+        emojis: '⚠️ 🩺 🚨',
+        titleKey: 'dashboard.needsAttention',
+        badgeKey: 'dashboard.needsAttention',
+        statusKey: 'dashboard.needsAttention',
+        resultKey: 'audio.resultAbnormal',
+    },
+    noise: {
+        Icon: AudioWaveform,
+        iconBg: 'bg-amber-100',
+        iconColor: 'text-amber-600',
+        badge: 'bg-amber-100 text-amber-700',
+        panel: 'bg-amber-50 border-amber-100',
+        text: 'text-amber-700',
+        emojis: '🔊 ⚠️ ❌',
+        titleKey: 'dashboard.noiseDetected',
+        badgeKey: 'dashboard.noiseResult',
+        statusKey: 'dashboard.noiseDetected',
+        resultKey: 'audio.resultNoise',
+    },
+};
+
 export function Dashboard() {
     const dispatch = useAppDispatch();
     const { status, analysisResult, audioUrl, error } = useAppSelector((state) => state.recording);
@@ -29,15 +92,18 @@ export function Dashboard() {
     const [recordingTime, setRecordingTime] = useState(0);
     const streamRef = useRef<MediaStream | null>(null);
     const chunksRef = useRef<Blob[]>([]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Dashboard Stats State
     const [statsData, setStatsData] = useState<DashboardStatsResponse | null>(null);
     const [selectedReport, setSelectedReport] = useState<AnalysisResponse | null>(null);
+    const resultUi = analysisResult && RESULT_UI[toHistoryStatus(analysisResult.diagnosis)];
+    const reportUi = selectedReport && RESULT_UI[toHistoryStatus(selectedReport.diagnosis)];
 
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const data = await historyService.getDashboardStats();
+                const data = await statsService.getDashboardStats();
                 setStatsData(data);
             } catch (err) {
                 console.error("Failed to fetch dashboard stats", err);
@@ -46,23 +112,13 @@ export function Dashboard() {
         fetchStats();
     }, [status]); 
 
-    const generateReportFromHistory = (item: HistoryItem): AnalysisResponse => {
-        const resultKey = item.diagnosis === 'Abnormal' ? 'audio.resultAbnormal' : 'audio.resultNormal';
-        const translatedResult = t(resultKey);
-
-        return {
-            id: item.id,
-            diagnosis: item.diagnosis,
-            confidence: item.confidence || 0,
-            createdAt: item.date,
-            audioUrl: item.audioUrl || '',
-            details: t('audio.analysisDetails', { result: translatedResult }),
-            severity: item.diagnosis === 'Abnormal' ? 'high' : 'low',
-            recommendations: item.diagnosis === 'Abnormal'
-                ? [t('audio.consultCardiologist'), t('audio.monitorSymptoms')]
-                : [t('audio.routineCheckup')]
-        };
-    };
+    const generateReportFromHistory = (item: HistoryItem): AnalysisResponse => buildAnalysisReport({
+        id: item.id,
+        diagnosis: item.diagnosis,
+        confidence: item.confidence || 0,
+        createdAt: item.date,
+        audioUrl: item.audioUrl,
+    });
 
     // Timer
     useEffect(() => {
@@ -104,11 +160,15 @@ export function Dashboard() {
                     const arrayBuffer = await blob.arrayBuffer();
                     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
                     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                    const wavBlob = audioBufferToWav(audioBuffer);
-                    const url = URL.createObjectURL(wavBlob);
-                    dispatch(stopRecording(url));
+                    if (audioBuffer.duration < 1) {
+                        dispatch(setRecordingError(t('audio.recordingTooShort')));
+                    } else {
+                        const wavBlob = audioBufferToWav(audioBuffer);
+                        const url = URL.createObjectURL(wavBlob);
+                        dispatch(stopRecording(url));
+                    }
                 } catch (error) {
-                    dispatch(setRecordingError('Error converting audio to WAV'));
+                    dispatch(setRecordingError(t('audio.failedToSave')));
                 }
                 streamRef.current?.getTracks().forEach(track => track.stop());
                 streamRef.current = null;
@@ -116,7 +176,8 @@ export function Dashboard() {
             recorder.start();
             dispatch(startRecording());
         } catch (err) {
-            dispatch(setRecordingError('Error accessing microphone'));
+            const denied = err instanceof DOMException && err.name === 'NotAllowedError';
+            dispatch(setRecordingError(t(denied ? 'audio.micPermissionDenied' : 'audio.micAccessError')));
         }
     };
 
@@ -127,7 +188,7 @@ export function Dashboard() {
     }, [mediaRecorder]);
 
     useEffect(() => {
-        if (status === 'recording' && recordingTime >= 30) {
+        if (status === 'recording' && recordingTime >= MAX_RECORDING_SECONDS) {
             handleStop();
         }
     }, [recordingTime, status, handleStop]);
@@ -142,6 +203,20 @@ export function Dashboard() {
         } catch (err) {
             dispatch(setRecordingError('Failed to prepare audio for upload'));
         }
+    };
+
+    const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        e.target.value = ''; // allow re-selecting the same file
+        if (!file) return;
+
+        const isWav = file.name.toLowerCase().endsWith('.wav') || WAV_MIME_TYPES.includes(file.type);
+        if (!isWav) {
+            dispatch(setRecordingError(t('dashboard.invalidFileType')));
+            return;
+        }
+        // Uploaded files go through the same review → analyze flow as recordings
+        dispatch(stopRecording(URL.createObjectURL(file)));
     };
 
     const handleReset = () => {
@@ -206,6 +281,29 @@ export function Dashboard() {
                                 <p className="text-center text-sm text-gray-500 mt-6">
                                     {t('dashboard.clickToStart')}
                                 </p>
+
+                                <div className="flex items-center gap-4 my-6">
+                                    <div className="flex-1 h-px bg-gray-200" />
+                                    <span className="text-sm font-medium text-gray-500">{t('dashboard.orUpload')}</span>
+                                    <div className="flex-1 h-px bg-gray-200" />
+                                </div>
+                                <div className="flex justify-center">
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept=".wav,audio/wav,audio/x-wav,audio/wave"
+                                        className="hidden"
+                                        onChange={handleFileSelected}
+                                    />
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="px-6 py-5 rounded-xl border-cyan-600 text-cyan-700 hover:bg-cyan-50 cursor-pointer"
+                                    >
+                                        <Upload className="w-5 h-5 me-2" />
+                                        {t('dashboard.uploadSound')}
+                                    </Button>
+                                </div>
                             </>
                         )}
 
@@ -225,7 +323,7 @@ export function Dashboard() {
 
                                 <div className="text-center">
                                     <div className="text-5xl font-bold text-cyan-600 mb-4">
-                                        {recordingTime}s / 30s
+                                        {recordingTime}s / {MAX_RECORDING_SECONDS}s
                                     </div>
                                     <Button
                                         onClick={handleStop}
@@ -279,29 +377,15 @@ export function Dashboard() {
                             </div>
                         )}
 
-                        {status === 'complete' && analysisResult && (
+                        {status === 'complete' && analysisResult && resultUi && (
                             <div className="text-center py-8">
-                                {analysisResult.diagnosis === 'Normal' ? (
-                                    <>
-                                        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                            <CheckCircle className="w-12 h-12 text-green-600" />
-                                        </div>
-                                        <h3 className="text-2xl font-bold text-gray-900 mb-2">{t('dashboard.normalResult')}</h3>
-                                        <p className="text-gray-600 mb-6">
-                                            {analysisResult.details}
-                                        </p>
-                                    </>
-                                ) : (
-                                    <>
-                                        <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                            <AlertCircle className="w-12 h-12 text-amber-600" />
-                                        </div>
-                                        <h3 className="text-2xl font-bold text-gray-900 mb-2">{t('dashboard.needsAttention')}</h3>
-                                        <p className="text-gray-600 mb-6">
-                                            {analysisResult.details}
-                                        </p>
-                                    </>
-                                )}
+                                <div className={`w-20 h-20 ${resultUi.iconBg} rounded-full flex items-center justify-center mx-auto mb-4`}>
+                                    <resultUi.Icon className={`w-12 h-12 ${resultUi.iconColor}`} />
+                                </div>
+                                <h3 className="text-2xl font-bold text-gray-900 mb-2">{t(resultUi.titleKey)}</h3>
+                                <p className="text-gray-600 mb-6">
+                                    {analysisResult.details}
+                                </p>
 
                                 <div className="flex gap-4 justify-center">
                                     <Button variant="outline" onClick={handleReset} className="px-6 py-6 rounded-xl cursor-pointer">
@@ -371,7 +455,7 @@ export function Dashboard() {
             {/* Analysis Report Dialog - Reused for both main view and history */}
             <Dialog open={!!selectedReport} onOpenChange={(open) => !open && setSelectedReport(null)}>
                 <DialogContent className="sm:max-w-md">
-                    {selectedReport && (
+                    {selectedReport && reportUi && (
                         <>
                             <DialogHeader>
                                 <DialogTitle className="text-xl font-bold flex items-center gap-2">
@@ -386,35 +470,22 @@ export function Dashboard() {
                             <div className="space-y-6 py-4">
                                 {/* Diagnosis Badge */}
                                 <div className="flex justify-center">
-                                    <span className={`px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 ${selectedReport.diagnosis === 'Normal'
-                                        ? 'bg-green-100 text-green-700'
-                                        : 'bg-amber-100 text-amber-700'
-                                        }`}>
-                                        {selectedReport.diagnosis === 'Normal' ? (
-                                            <CheckCircle className="w-4 h-4" />
-                                        ) : (
-                                            <AlertCircle className="w-4 h-4" />
-                                        )}
-                                        {selectedReport.diagnosis === 'Normal' ? t('dashboard.normalResult') : t('dashboard.needsAttention')}
+                                    <span className={`px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 ${reportUi.badge}`}>
+                                        <reportUi.Icon className="w-4 h-4" />
+                                        {t(reportUi.badgeKey)}
                                     </span>
                                 </div>
 
                                 {/* Cardiac Status Assessment with Emojis */}
-                                <div className={`p-4 rounded-xl text-center border ${
-                                    selectedReport.diagnosis === 'Normal'
-                                        ? 'bg-green-50 border-green-100'
-                                        : 'bg-amber-50 border-amber-100'
-                                }`}>
+                                <div className={`p-4 rounded-xl text-center border ${reportUi.panel}`}>
                                     <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">
                                         {t('dashboard.cardiacStatus')}
                                     </span>
                                     <div className="text-3xl my-1">
-                                        {selectedReport.diagnosis === 'Normal' ? '🟢 💚 😊' : '⚠️ 🩺 🚨'}
+                                        {reportUi.emojis}
                                     </div>
-                                    <span className={`text-sm font-bold ${
-                                        selectedReport.diagnosis === 'Normal' ? 'text-green-700' : 'text-amber-700'
-                                    }`}>
-                                        {selectedReport.diagnosis === 'Normal' ? t('dashboard.healthyRhythm') : t('dashboard.needsAttention')}
+                                    <span className={`text-sm font-bold ${reportUi.text}`}>
+                                        {t(reportUi.statusKey)}
                                     </span>
                                 </div>
 
@@ -483,7 +554,7 @@ function StatItem({ icon, label, value }: { icon: React.ReactNode; label: string
 function ActivityItem({ item, onViewReport }: { item: HistoryItem; onViewReport: () => void }) {
     const { t, i18n } = useTranslation();
     const formattedDate = new Date(item.date).toLocaleDateString(i18n.language);
-    const translatedResult = item.diagnosis === 'Normal' ? t('audio.resultNormal') : t('audio.resultAbnormal');
+    const ui = RESULT_UI[toHistoryStatus(item.diagnosis)];
 
     return (
         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl group hover:bg-gray-100 transition-colors">
@@ -492,11 +563,8 @@ function ActivityItem({ item, onViewReport }: { item: HistoryItem; onViewReport:
                 <p className="text-xs text-gray-500">{t('dashboard.heartSoundRecording')}</p>
             </div>
             <div className="flex items-center gap-3">
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${item.status === 'normal'
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-amber-100 text-amber-700'
-                    }`}>
-                    {translatedResult}
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${ui.badge}`}>
+                    {t(ui.resultKey)}
                 </span>
                 <button
                     onClick={onViewReport}

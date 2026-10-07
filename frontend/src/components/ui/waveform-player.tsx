@@ -36,7 +36,10 @@ export function WaveformPlayer({ audioUrl }: WaveformPlayerProps) {
         });
 
         // Load the audio
-        wavesurfer.load(audioUrl);
+        wavesurfer.load(audioUrl).catch((err) => {
+            // destroy() on unmount aborts an in-flight load — expected, not an error
+            if (err?.name !== 'AbortError') console.error('Failed to load audio', err);
+        });
 
         // Event listeners
         wavesurfer.on('ready', () => {

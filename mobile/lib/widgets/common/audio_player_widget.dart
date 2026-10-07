@@ -21,42 +21,63 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
   void initState() {
     super.initState();
     _player = AudioPlayer();
+    _setupListeners();
     _initPlayer();
+  }
+
+  void _setupListeners() {
+    _player.durationStream.listen((d) {
+      if (mounted && d != null) {
+        setState(() => _duration = d);
+      }
+    });
+
+    _player.positionStream.listen((p) {
+      if (mounted) {
+        setState(() => _position = p);
+      }
+    });
+
+    _player.playerStateStream.listen((state) {
+      if (mounted) {
+        setState(() {
+          _isPlaying = state.playing;
+          if (state.processingState == ProcessingState.completed) {
+            _player.seek(Duration.zero);
+            _player.pause();
+          }
+        });
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(AudioPlayerWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.audioPath != widget.audioPath) {
+      _initPlayer();
+    }
   }
 
   Future<void> _initPlayer() async {
     try {
-      if (widget.audioPath.startsWith('http')) {
-        await _player.setUrl(widget.audioPath);
+      await _player.stop();
+      final path = widget.audioPath;
+      if (path.isEmpty) return;
+
+      if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('content://')) {
+        await _player.setUrl(path);
       } else {
-        await _player.setFilePath(widget.audioPath);
+        final fileUri = path.startsWith('file://') ? Uri.parse(path) : Uri.file(path);
+        await _player.setAudioSource(AudioSource.uri(fileUri));
       }
-
-      _player.durationStream.listen((d) {
-        if (mounted && d != null) {
-          setState(() => _duration = d);
-        }
-      });
-
-      _player.positionStream.listen((p) {
-        if (mounted) {
-          setState(() => _position = p);
-        }
-      });
-
-      _player.playerStateStream.listen((state) {
-        if (mounted) {
-          setState(() {
-            _isPlaying = state.playing;
-            if (state.processingState == ProcessingState.completed) {
-              _player.seek(Duration.zero);
-              _player.pause();
-            }
-          });
-        }
-      });
     } catch (e) {
-      debugPrint('Error loading audio: $e');
+      debugPrint('Error loading audio with primary method: $e');
+      try {
+        await _player.setAudioSource(AudioSource.uri(Uri.parse(widget.audioPath)));
+      } catch (e2) {
+        debugPrint('Fallback audio load failed: $e2');
+      }
     }
   }
 
@@ -86,11 +107,14 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
           Row(
             children: [
               IconButton(
-                onPressed: () {
+                onPressed: () async {
                   if (_isPlaying) {
-                    _player.pause();
+                    await _player.pause();
                   } else {
-                    _player.play();
+                    if (_player.processingState == ProcessingState.completed) {
+                      await _player.seek(Duration.zero);
+                    }
+                    await _player.play();
                   }
                 },
                 icon: Icon(

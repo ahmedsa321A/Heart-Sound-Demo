@@ -50,6 +50,8 @@
         "heartSoundRecording": "تسجيل صوت القلب",
         "analysisReport": "تقرير التحليل",
         "confidenceScore": "معدل الثقة",
+        "cardiacStatus": "حالة القلب",
+        "healthyRhythm": "تم اكتشاف إيقاع قلب سليم وطبيعي",
         "recommendations": "التوصيات"
     },
     "auth": {

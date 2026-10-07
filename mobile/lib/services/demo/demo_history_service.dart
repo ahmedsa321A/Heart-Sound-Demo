@@ -17,11 +17,20 @@ class DemoHistoryService {
 
   /// Add a new analysis result to the in-memory history.
   void addResult(AnalysisResult result) {
+    String status;
+    if (result.isNormal) {
+      status = 'normal';
+    } else if (result.isNoise) {
+      status = 'noise';
+    } else {
+      status = 'attention';
+    }
+
     final item = HistoryItem(
       id: result.id,
       date: result.createdAt,
       diagnosis: result.diagnosis,
-      status: result.isNormal ? 'normal' : 'attention',
+      status: status,
       confidence: result.confidence,
     );
     _history.insert(0, item); // Most recent first

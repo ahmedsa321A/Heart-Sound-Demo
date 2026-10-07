@@ -29,12 +29,13 @@ dependencies:
 
   # Internationalization
   easy_localization: ^3.0.7
-  intl: ^0.19.0
+  intl: ^0.20.2
 
   # Audio
   record: ^5.2.1
   just_audio: ^0.9.43
   path_provider: ^2.1.5
+  file_picker: ^8.1.7
 
   # Permissions
   permission_handler: ^11.4.0
@@ -43,7 +44,7 @@ dependencies:
   google_fonts: ^6.2.1
 
   # On-device AI inference (demo mode)
-  tflite_flutter: ^0.11.0
+  tflite_flutter: ^0.12.1
 
 dev_dependencies:
   flutter_test:
@@ -60,4 +61,5 @@ flutter:
 
 dependency_overrides:
   record_platform_interface: 1.2.0
+  flutter_plugin_android_lifecycle: 2.0.24
 

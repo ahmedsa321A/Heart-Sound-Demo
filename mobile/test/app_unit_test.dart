@@ -1,9 +1,12 @@
+import 'dart:math';
+import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:heart_ai/models/user.dart';
 import 'package:heart_ai/models/analysis.dart';
 import 'package:heart_ai/utils/validators.dart';
 import 'package:heart_ai/utils/message_translator.dart';
 import 'package:heart_ai/config/app_config.dart';
+import 'package:heart_ai/services/demo/mfcc_extractor.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -61,6 +64,8 @@ void main() {
       );
 
       expect(resultNormal.isNormal, true);
+      expect(resultNormal.isAbnormal, false);
+      expect(resultNormal.isNoise, false);
 
       final resultAbnormal = AnalysisResult(
         id: 'p2',
@@ -71,6 +76,77 @@ void main() {
       );
 
       expect(resultAbnormal.isNormal, false);
+      expect(resultAbnormal.isAbnormal, true);
+      expect(resultAbnormal.isNoise, false);
+
+      final resultNoise = AnalysisResult(
+        id: 'p3',
+        diagnosis: 'Noise',
+        confidence: 0.0,
+        createdAt: '2026-07-22T10:00:00Z',
+        details: 'Noise detected',
+      );
+
+      expect(resultNoise.isNoise, true);
+      expect(resultNoise.isNormal, false);
+      expect(resultNoise.isAbnormal, false);
+    });
+
+    test('HistoryItem Noise handling', () {
+      final item = HistoryItem.fromJson({
+        'id': 'h1',
+        'predictionResult': 'Noise',
+        'predictionScore': 0.0,
+        'createdAt': '2026-07-22T10:00:00Z',
+      });
+
+      expect(item.isNoise, true);
+      expect(item.status, 'noise');
+      expect(item.isNormal, false);
+    });
+  });
+
+  group('Signal Quality Assessment (SQA) Tests', () {
+    test('Silence rejection', () {
+      final silentSignal = Float64List(44100); // 1 second of silence
+      final quality = MfccExtractor.evaluateSignalQuality(silentSignal, 44100);
+      expect(quality.isValidHeartSound, false);
+      expect(quality.reason, 'silence');
+    });
+
+    test('Clapping / Sharp Impulse rejection', () {
+      final impulseSignal = Float64List(44100);
+      // Single sharp impulse with high crest factor
+      impulseSignal[1000] = 0.95;
+      impulseSignal[1001] = -0.85;
+      final quality = MfccExtractor.evaluateSignalQuality(impulseSignal, 44100);
+      expect(quality.isValidHeartSound, false);
+      expect(quality.reason, anyOf('clapping_or_tapping', 'silence'));
+    });
+
+    test('High Frequency Noise rejection (e.g. clapping / whistle)', () {
+      final noiseSignal = Float64List(44100);
+      // Generate 3500 Hz high-frequency tone
+      for (int i = 0; i < noiseSignal.length; i++) {
+        noiseSignal[i] = 0.5 * sin(2 * pi * 3500 * i / 44100);
+      }
+      final quality = MfccExtractor.evaluateSignalQuality(noiseSignal, 44100);
+      expect(quality.isValidHeartSound, false);
+      expect(quality.reason, 'high_frequency_noise');
+    });
+
+    test('Valid Low Frequency Cardiac Sound Acceptance', () {
+      final cardiacSignal = Float64List(44100);
+      // Generate 60 Hz low-frequency cardiac sound with lub-dub envelope
+      for (int i = 0; i < cardiacSignal.length; i++) {
+        final t = i / 44100.0;
+        final carrier = sin(2 * pi * 60 * t) + 0.5 * sin(2 * pi * 120 * t);
+        final envelope = (sin(2 * pi * 1.2 * t).abs() > 0.4) ? 0.6 : 0.05;
+        cardiacSignal[i] = carrier * envelope;
+      }
+      final quality = MfccExtractor.evaluateSignalQuality(cardiacSignal, 44100);
+      expect(quality.isValidHeartSound, true);
+      expect(quality.reason, 'valid');
     });
   });
 

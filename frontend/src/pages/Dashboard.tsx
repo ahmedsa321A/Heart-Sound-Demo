@@ -399,20 +399,23 @@ export function Dashboard() {
                                     </span>
                                 </div>
 
-                                {/* Score */}
-                                <div className="space-y-2">
-                                    <div className="flex justify-between items-center text-sm font-medium">
-                                        <span className="text-gray-600">{t('dashboard.confidenceScore')}</span>
-                                        <span className={`font-bold ${selectedReport.diagnosis === 'Normal' ? 'text-green-700' : 'text-amber-700'}`}>
-                                            {(selectedReport.confidence * 100).toFixed(1)}%
-                                        </span>
+                                {/* Cardiac Status Assessment with Emojis */}
+                                <div className={`p-4 rounded-xl text-center border ${
+                                    selectedReport.diagnosis === 'Normal'
+                                        ? 'bg-green-50 border-green-100'
+                                        : 'bg-amber-50 border-amber-100'
+                                }`}>
+                                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">
+                                        {t('dashboard.cardiacStatus')}
+                                    </span>
+                                    <div className="text-3xl my-1">
+                                        {selectedReport.diagnosis === 'Normal' ? '🟢 💚 😊' : '⚠️ 🩺 🚨'}
                                     </div>
-                                    <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                                        <div
-                                            className={`h-full rounded-full transition-all duration-500 ${selectedReport.diagnosis === 'Normal' ? 'bg-green-600' : 'bg-amber-600'}`}
-                                            style={{ width: `${selectedReport.confidence * 100}%` }}
-                                        />
-                                    </div>
+                                    <span className={`text-sm font-bold ${
+                                        selectedReport.diagnosis === 'Normal' ? 'text-green-700' : 'text-amber-700'
+                                    }`}>
+                                        {selectedReport.diagnosis === 'Normal' ? t('dashboard.healthyRhythm') : t('dashboard.needsAttention')}
+                                    </span>
                                 </div>
 
                                 {/* Details */}

@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-import 'package:flutter/services.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
 import '../../models/analysis.dart';
 import 'mfcc_extractor.dart';
@@ -17,7 +15,7 @@ class LocalInferenceService {
   Future<void> loadModel() async {
     if (_isLoaded) return;
     try {
-      _interpreter = await Interpreter.fromAsset('models/heart_model.tflite');
+      _interpreter = await Interpreter.fromAsset('assets/models/heart_model.tflite');
       _isLoaded = true;
       print('[LocalInference] Model loaded successfully');
     } catch (e) {
@@ -29,18 +27,28 @@ class LocalInferenceService {
   /// Run inference on a WAV file path.
   /// Returns the same structure as the backend: {predictionResult, predictionScore}
   Future<Map<String, dynamic>> predict(String wavPath) async {
+    // 1. Signal Quality & Noise Check (Gatekeeper)
+    final quality = MfccExtractor.evaluateAudioQuality(wavPath);
+    if (!quality.isValidHeartSound) {
+      return {
+        'predictionResult': 'Noise',
+        'predictionScore': 0.0,
+        'qualityReason': quality.reason,
+      };
+    }
+
     if (!_isLoaded || _interpreter == null) {
       await loadModel();
     }
 
-    // 1. Preprocess audio → MFCC features for each segment
+    // 2. Preprocess audio → MFCC features for each segment
     final segmentMfccs = MfccExtractor.processAudioFile(wavPath);
 
     if (segmentMfccs.isEmpty) {
       throw Exception('No valid segments could be extracted from audio');
     }
 
-    // 2. Run inference per segment
+    // 3. Run inference per segment
     final segmentProbs = <double>[];
 
     for (final mfcc in segmentMfccs) {
@@ -69,7 +77,7 @@ class LocalInferenceService {
       throw Exception('Failed to generate predictions');
     }
 
-    // 3. Aggregate using top-3 mean (same as Python API)
+    // 4. Aggregate using top-3 mean (same as Python API)
     segmentProbs.sort((a, b) => b.compareTo(a)); // descending
     final topK = segmentProbs.length < 3 ? segmentProbs.length : 3;
     double topSum = 0;
@@ -78,7 +86,7 @@ class LocalInferenceService {
     }
     final finalScore = topSum / topK;
 
-    // 4. Apply threshold
+    // 5. Apply threshold
     final result =
         finalScore >= MfccExtractor.optimalThreshold ? 'Abnormal' : 'Normal';
 
@@ -93,23 +101,47 @@ class LocalInferenceService {
     final backendData = await predict(filePath);
 
     final diagnosis = backendData['predictionResult'] as String;
+    final isNoise = diagnosis == 'Noise' || diagnosis == 'Invalid';
     final isAbnormal = diagnosis == 'Abnormal';
 
-    final resultKey =
-        isAbnormal ? 'audio.resultAbnormal' : 'audio.resultNormal';
-    final translatedResult = resultKey.tr();
+    String details;
+    String severity;
+    List<String> recommendations;
+
+    if (isNoise) {
+      details = 'audio.noiseDetails'.tr();
+      severity = 'medium';
+      recommendations = [
+        'audio.placeFirmly'.tr(),
+        'audio.quietEnvironment'.tr(),
+        'audio.removeCover'.tr(),
+      ];
+    } else if (isAbnormal) {
+      final translatedResult = 'audio.resultAbnormal'.tr();
+      details = 'audio.analysisDetails'.tr(args: [translatedResult]);
+      severity = 'high';
+      recommendations = [
+        'audio.consultCardiologist'.tr(),
+        'audio.monitorSymptoms'.tr(),
+      ];
+    } else {
+      final translatedResult = 'audio.resultNormal'.tr();
+      details = 'audio.analysisDetails'.tr(args: [translatedResult]);
+      severity = 'low';
+      recommendations = [
+        'audio.routineCheckup'.tr(),
+      ];
+    }
 
     return AnalysisResult(
       id: 'demo_${DateTime.now().millisecondsSinceEpoch}',
       diagnosis: diagnosis,
-      confidence: backendData['predictionScore'] as double,
+      confidence: (backendData['predictionScore'] as num?)?.toDouble() ?? 0.0,
       createdAt: DateTime.now().toIso8601String(),
       audioUrl: '',
-      details: 'audio.analysisDetails'.tr(args: [translatedResult]),
-      severity: isAbnormal ? 'high' : 'low',
-      recommendations: isAbnormal
-          ? ['audio.consultCardiologist'.tr(), 'audio.monitorSymptoms'.tr()]
-          : ['audio.routineCheckup'.tr()],
+      details: details,
+      severity: severity,
+      recommendations: recommendations,
     );
   }
 

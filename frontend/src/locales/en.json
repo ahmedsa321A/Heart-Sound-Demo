@@ -50,6 +50,8 @@
         "heartSoundRecording": "Heart sound recording",
         "analysisReport": "Analysis Report",
         "confidenceScore": "Confidence Score",
+        "cardiacStatus": "Cardiac Status",
+        "healthyRhythm": "Healthy Heart Rhythm Detected",
         "recommendations": "Recommendations"
     },
     "auth": {

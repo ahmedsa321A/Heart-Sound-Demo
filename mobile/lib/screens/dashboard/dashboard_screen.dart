@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +7,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../../config/theme.dart';
 import '../../models/analysis.dart';
@@ -99,6 +101,31 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     ref.read(recordingProvider.notifier).reset();
   }
 
+  Future<void> _uploadAudioFile() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['wav', 'WAV'],
+      );
+
+      if (result != null && result.files.single.path != null) {
+        final pickedPath = result.files.single.path!;
+        final tempDir = await getTemporaryDirectory();
+        final targetPath = '${tempDir.path}/uploaded_${DateTime.now().millisecondsSinceEpoch}.wav';
+
+        final sourceFile = File(pickedPath);
+        if (await sourceFile.exists()) {
+          await sourceFile.copy(targetPath);
+          ref.read(recordingProvider.notifier).stopRecording(targetPath);
+        } else {
+          ref.read(recordingProvider.notifier).stopRecording(pickedPath);
+        }
+      }
+    } catch (e) {
+      ref.read(recordingProvider.notifier).setError('Failed to select file: $e');
+    }
+  }
+
   Future<void> _analyzeAudio(String path) async {
     await ref.read(recordingProvider.notifier).analyzeAudio(path);
     // Refresh stats after successful analysis
@@ -110,8 +137,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   AnalysisResult _generateReportFromHistory(HistoryItem item) {
+    if (item.isNoise) {
+      return AnalysisResult(
+        id: item.id,
+        diagnosis: item.diagnosis,
+        confidence: item.confidence ?? 0.0,
+        createdAt: item.date,
+        audioUrl: item.audioUrl ?? '',
+        details: 'audio.noiseDetails'.tr(),
+        severity: 'medium',
+        recommendations: [
+          'audio.placeFirmly'.tr(),
+          'audio.quietEnvironment'.tr(),
+          'audio.removeCover'.tr(),
+        ],
+      );
+    }
+
+    final isAbnormal = item.diagnosis == 'Abnormal';
     final resultKey =
-        item.diagnosis == 'Abnormal' ? 'audio.resultAbnormal' : 'audio.resultNormal';
+        isAbnormal ? 'audio.resultAbnormal' : 'audio.resultNormal';
     final translatedResult = resultKey.tr();
 
     return AnalysisResult(
@@ -121,8 +166,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       createdAt: item.date,
       audioUrl: item.audioUrl ?? '',
       details: 'audio.analysisDetails'.tr(args: [translatedResult]),
-      severity: item.diagnosis == 'Abnormal' ? 'high' : 'low',
-      recommendations: item.diagnosis == 'Abnormal'
+      severity: isAbnormal ? 'high' : 'low',
+      recommendations: isAbnormal
           ? ['audio.consultCardiologist'.tr(), 'audio.monitorSymptoms'.tr()]
           : ['audio.routineCheckup'.tr()],
     );
@@ -289,6 +334,34 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   style: const TextStyle(color: AppTheme.gray500, fontSize: 14),
                 ),
               ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  const Expanded(child: Divider(color: AppTheme.gray200)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'dashboard.orUpload'.tr(),
+                      style: const TextStyle(
+                        color: AppTheme.gray500,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  const Expanded(child: Divider(color: AppTheme.gray200)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: AppButton(
+                  text: 'dashboard.uploadSound'.tr(),
+                  onPressed: _uploadAudioFile,
+                  outlined: true,
+                  fullWidth: false,
+                  icon: const Icon(Icons.upload_file, color: AppTheme.cyan600),
+                ),
+              ),
             ],
 
             // RECORDING state
@@ -404,18 +477,34 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        color: state.analysisResult!.isNormal ? AppTheme.green100 : AppTheme.amber100,
+                        color: state.analysisResult!.isNormal
+                            ? AppTheme.green100
+                            : (state.analysisResult!.isNoise
+                                ? AppTheme.amber100
+                                : AppTheme.amber100),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
-                        state.analysisResult!.isNormal ? Icons.check_circle : Icons.warning_amber_rounded,
-                        color: state.analysisResult!.isNormal ? AppTheme.green600 : AppTheme.amber700,
+                        state.analysisResult!.isNormal
+                            ? Icons.check_circle
+                            : (state.analysisResult!.isNoise
+                                ? Icons.graphic_eq
+                                : Icons.warning_amber_rounded),
+                        color: state.analysisResult!.isNormal
+                            ? AppTheme.green600
+                            : (state.analysisResult!.isNoise
+                                ? AppTheme.amber700
+                                : AppTheme.amber700),
                         size: 48,
                       ),
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      state.analysisResult!.isNormal ? 'dashboard.normalResult'.tr() : 'dashboard.needsAttention'.tr(),
+                      state.analysisResult!.isNormal
+                          ? 'dashboard.normalResult'.tr()
+                          : (state.analysisResult!.isNoise
+                              ? 'dashboard.noiseDetected'.tr()
+                              : 'dashboard.needsAttention'.tr()),
                       style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
@@ -635,8 +724,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       formattedDate = item.date;
     }
 
-    final translatedResult =
-        item.diagnosis == 'Normal' ? 'audio.resultNormal'.tr() : 'audio.resultAbnormal'.tr();
+    final translatedResult = item.isNormal
+        ? 'audio.resultNormal'.tr()
+        : (item.isNoise
+            ? 'audio.resultNoise'.tr()
+            : 'audio.resultAbnormal'.tr());
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -671,16 +763,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: item.isNormal ? AppTheme.green50 : AppTheme.amber100,
+                  color: item.isNormal
+                      ? AppTheme.green50
+                      : (item.isNoise ? AppTheme.amber100 : AppTheme.amber100),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: item.isNormal ? AppTheme.green100 : AppTheme.amber100,
+                    color: item.isNormal
+                        ? AppTheme.green100
+                        : (item.isNoise ? AppTheme.amber100 : AppTheme.amber100),
                   ),
                 ),
                 child: Text(
                   translatedResult,
                   style: TextStyle(
-                    color: item.isNormal ? AppTheme.green700 : AppTheme.amber700,
+                    color: item.isNormal
+                        ? AppTheme.green700
+                        : (item.isNoise ? AppTheme.amber700 : AppTheme.amber700),
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),
@@ -754,25 +852,41 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: report.isNormal ? AppTheme.green50 : AppTheme.amber100,
+                    color: report.isNormal
+                        ? AppTheme.green50
+                        : (report.isNoise ? AppTheme.amber100 : AppTheme.amber100),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: report.isNormal ? AppTheme.green100 : AppTheme.amber100,
+                      color: report.isNormal
+                          ? AppTheme.green100
+                          : (report.isNoise ? AppTheme.amber100 : AppTheme.amber100),
                     ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        report.isNormal ? Icons.check_circle : Icons.warning_amber_rounded,
-                        color: report.isNormal ? AppTheme.green600 : AppTheme.amber700,
+                        report.isNormal
+                            ? Icons.check_circle
+                            : (report.isNoise
+                                ? Icons.graphic_eq
+                                : Icons.warning_amber_rounded),
+                        color: report.isNormal
+                            ? AppTheme.green600
+                            : (report.isNoise ? AppTheme.amber700 : AppTheme.amber700),
                         size: 16,
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        report.isNormal ? 'dashboard.normalResult'.tr() : 'dashboard.needsAttention'.tr(),
+                        report.isNormal
+                            ? 'dashboard.normalResult'.tr()
+                            : (report.isNoise
+                                ? 'dashboard.noiseResult'.tr()
+                                : 'dashboard.needsAttention'.tr()),
                         style: TextStyle(
-                          color: report.isNormal ? AppTheme.green700 : AppTheme.amber700,
+                          color: report.isNormal
+                              ? AppTheme.green700
+                              : (report.isNoise ? AppTheme.amber700 : AppTheme.amber700),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -782,39 +896,55 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Confidence score
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('dashboard.confidenceScore'.tr(), style: const TextStyle(color: AppTheme.gray600)),
-                  Text(
-                    '${(report.confidence * 100).toStringAsFixed(1)}%',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: report.isNormal ? AppTheme.green700 : AppTheme.amber700,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
+              // Cardiac Status Assessment with Emojis
               Container(
-                height: 8,
                 width: double.infinity,
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppTheme.gray100,
-                  borderRadius: BorderRadius.circular(4),
+                  color: report.isNormal
+                      ? AppTheme.green50
+                      : (report.isNoise ? AppTheme.amber100 : AppTheme.amber100),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: report.isNormal
+                        ? AppTheme.green100
+                        : (report.isNoise ? AppTheme.amber100 : AppTheme.amber100),
+                  ),
                 ),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: FractionallySizedBox(
-                    widthFactor: report.confidence,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: report.isNormal ? AppTheme.green600 : AppTheme.amber600,
-                        borderRadius: BorderRadius.circular(4),
+                child: Column(
+                  children: [
+                    Text(
+                      'dashboard.cardiacStatus'.tr(),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.gray600,
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 8),
+                    Text(
+                      report.isNormal
+                          ? '🟢 💚 😊'
+                          : (report.isNoise ? '🔊 ⚠️ ❌' : '⚠️ 🩺 🚨'),
+                      style: const TextStyle(fontSize: 32),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      report.isNormal
+                          ? 'dashboard.healthyRhythm'.tr()
+                          : (report.isNoise
+                              ? 'dashboard.noiseDetected'.tr()
+                              : 'dashboard.needsAttention'.tr()),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: report.isNormal
+                            ? AppTheme.green700
+                            : (report.isNoise ? AppTheme.amber700 : AppTheme.amber700),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 20),

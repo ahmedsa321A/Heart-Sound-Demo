@@ -92,11 +92,35 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
         final backendData = await _audioService!.uploadAudio(filePath);
         final diagnosis =
             backendData['predictionResult'] as String? ?? 'Unknown';
+        final isNoise = diagnosis == 'Noise' || diagnosis == 'Invalid';
         final isAbnormal = diagnosis == 'Abnormal';
 
-        final resultKey =
-            isAbnormal ? 'audio.resultAbnormal' : 'audio.resultNormal';
-        final translatedResult = resultKey.tr();
+        String details;
+        String severity;
+        List<String> recommendations;
+
+        if (isNoise) {
+          details = 'audio.noiseDetails'.tr();
+          severity = 'medium';
+          recommendations = [
+            'audio.placeFirmly'.tr(),
+            'audio.quietEnvironment'.tr(),
+            'audio.removeCover'.tr(),
+          ];
+        } else if (isAbnormal) {
+          final translatedResult = 'audio.resultAbnormal'.tr();
+          details = 'audio.analysisDetails'.tr(args: [translatedResult]);
+          severity = 'high';
+          recommendations = [
+            'audio.consultCardiologist'.tr(),
+            'audio.monitorSymptoms'.tr()
+          ];
+        } else {
+          final translatedResult = 'audio.resultNormal'.tr();
+          details = 'audio.analysisDetails'.tr(args: [translatedResult]);
+          severity = 'low';
+          recommendations = ['audio.routineCheckup'.tr()];
+        }
 
         result = AnalysisResult(
           id: backendData['_id'] as String? ?? '',
@@ -105,14 +129,9 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
               (backendData['predictionScore'] as num?)?.toDouble() ?? 0.0,
           createdAt: backendData['createdAt'] as String? ?? '',
           audioUrl: '',
-          details: 'audio.analysisDetails'.tr(args: [translatedResult]),
-          severity: isAbnormal ? 'high' : 'low',
-          recommendations: isAbnormal
-              ? [
-                  'audio.consultCardiologist'.tr(),
-                  'audio.monitorSymptoms'.tr()
-                ]
-              : ['audio.routineCheckup'.tr()],
+          details: details,
+          severity: severity,
+          recommendations: recommendations,
         );
       }
 

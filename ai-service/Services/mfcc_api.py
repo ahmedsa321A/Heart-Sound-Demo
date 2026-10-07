@@ -35,6 +35,52 @@ def focal_loss(gamma=2.0, alpha=0.5):
         return -K.mean(alpha * K.pow(1 - pt, gamma) * K.log(pt))
     return loss
 
+def evaluate_audio_quality(raw_signal, orig_sr):
+    """
+    Evaluates whether raw audio is a valid heart sound or random noise/clapping/silence.
+    """
+    if len(raw_signal) == 0:
+        return False, "silence"
+
+    # 1. RMS & Peak check
+    rms = float(np.sqrt(np.mean(raw_signal ** 2)))
+    max_abs = float(np.max(np.abs(raw_signal)))
+    if rms < 0.0015 or max_abs < 0.005:
+        return False, "silence"
+
+    # 2. Crest factor (clapping / tapping / impulse check)
+    crest_factor = max_abs / (rms + 1e-8)
+    if crest_factor > 14.0:
+        return False, "clapping_or_tapping"
+
+    # 3. Spectral Energy Ratio (Low vs High frequency)
+    if orig_sr >= 2000 and len(raw_signal) >= 1024:
+        freqs = np.fft.rfftfreq(1024, 1.0 / orig_sr)
+        step = max(1024, (len(raw_signal) - 1024) // 6)
+        total_low = 0.0
+        total_high = 0.0
+        total_all = 0.0
+        win = np.hanning(1024)
+
+        for start in range(0, len(raw_signal) - 1024 + 1, step):
+            frame = raw_signal[start:start + 1024] * win
+            spec = np.abs(np.fft.rfft(frame)) ** 2
+            total_all += np.sum(spec)
+            low_mask = (freqs >= 20) & (freqs <= 500)
+            high_mask = (freqs >= 1000) & (freqs <= min(8000, orig_sr / 2.0))
+            total_low += np.sum(spec[low_mask])
+            total_high += np.sum(spec[high_mask])
+
+        if total_all > 1e-12:
+            low_ratio = total_low / total_all
+            high_ratio = total_high / total_all
+            if low_ratio < 0.40 and high_ratio > 0.45:
+                return False, "high_frequency_noise"
+            if low_ratio < 0.25:
+                return False, "high_frequency_noise"
+
+    return True, "valid"
+
 # Load model with custom loss
 print("Loading model...")
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -180,19 +226,28 @@ async def predict(file: UploadFile = File(...)):
         signal, orig_sr = librosa.load(io.BytesIO(audio_bytes), sr=None, mono=False)
         signal = convert_to_mono_if_needed(signal)
         
-        # 2. Validate duration
+        # 2. Validate duration and trim to first 30 seconds if longer
         duration = len(signal) / orig_sr
-        if duration > MAX_DURATION_SEC:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Audio too long ({duration:.1f}s). Maximum duration is {MAX_DURATION_SEC}s."
-            )
-        
         if duration < 0.05:
             raise HTTPException(
                 status_code=400,
                 detail="Audio file is empty or invalid. Please record audio for at least 1 second."
             )
+        
+        # If voice is more than 30 seconds, cut to the first 30 seconds
+        if duration > MAX_DURATION_SEC:
+            max_samples = int(MAX_DURATION_SEC * orig_sr)
+            signal = signal[:max_samples]
+            duration = MAX_DURATION_SEC
+        
+        # 2b. Quality & Noise Check (Gatekeeper)
+        is_valid, reason = evaluate_audio_quality(signal, orig_sr)
+        if not is_valid:
+            return {
+                "predictionResult": "Noise",
+                "predictionScore": 0.0,
+                "qualityReason": reason
+            }
         
         # 3. Preprocess (EXACT same pipeline as training)
         signal = remove_dc_offset(signal)

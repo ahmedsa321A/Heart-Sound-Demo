@@ -2,6 +2,29 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+/// Result of signal quality assessment.
+class AudioQualityResult {
+  final bool isValidHeartSound;
+  final String reason; // 'valid', 'silence', 'high_frequency_noise', 'clapping_or_tapping', 'irregular_rhythm'
+  final double lowFreqEnergyRatio;
+  final double crestFactor;
+  final double rms;
+  final double rhythmScore;
+
+  const AudioQualityResult({
+    required this.isValidHeartSound,
+    required this.reason,
+    required this.lowFreqEnergyRatio,
+    required this.crestFactor,
+    required this.rms,
+    required this.rhythmScore,
+  });
+
+  @override
+  String toString() =>
+      'AudioQualityResult(valid: $isValidHeartSound, reason: $reason, lowRatio: ${lowFreqEnergyRatio.toStringAsFixed(2)}, crest: ${crestFactor.toStringAsFixed(1)}, rhythm: ${rhythmScore.toStringAsFixed(2)})';
+}
+
 /// Pure Dart MFCC feature extractor — replicates the Python mfcc_api.py pipeline.
 ///
 /// All parameters match training config exactly:
@@ -24,6 +47,13 @@ class MfccExtractor {
   static const int maxTimeSteps = 32;
   static const double optimalThreshold = 0.58;
   static const int maxDurationSec = 30;
+
+  // ─── Quality Assessment Thresholds ─────────────────────────────
+  static const double minRmsThreshold = 0.0015; // Minimum energy
+  static const double minLowFreqEnergyRatio = 0.40; // >40% energy in 20-500Hz
+  static const double maxHighFreqEnergyRatio = 0.45; // <45% energy in 1000-8000Hz
+  static const double maxCrestFactor = 14.0; // Clapping/tapping has extreme crest factor
+  static const double minRhythmScore = 0.08; // Peak autocorrelation in 40-180 BPM
 
   // ─── WAV reading ───────────────────────────────────────────────
   /// Reads a WAV file and returns (samples, sampleRate).
@@ -249,18 +279,18 @@ class MfccExtractor {
   /// Zero-phase forward-backward IIR filtering.
   static Float64List _filtfilt(List<double> b, List<double> a, Float64List x) {
     final n = x.length;
-    final padLen = 3 * max(b.length, a.length);
+    final int padLen = (3 * max(b.length, a.length)).toInt();
 
     // Edge padding (reflect)
     final padded = Float64List(n + 2 * padLen);
     for (int i = 0; i < padLen; i++) {
-      padded[i] = 2 * x[0] - x[min(padLen - i, n - 1)];
+      padded[i] = 2 * x[0] - x[min(padLen - i, n - 1).toInt()];
     }
     for (int i = 0; i < n; i++) {
       padded[padLen + i] = x[i];
     }
     for (int i = 0; i < padLen; i++) {
-      padded[padLen + n + i] = 2 * x[n - 1] - x[max(n - 2 - i, 0)];
+      padded[padLen + n + i] = 2 * x[n - 1] - x[max(n - 2 - i, 0).toInt()];
     }
 
     // Forward filter
@@ -501,7 +531,7 @@ class MfccExtractor {
           for (int k = 0; k < min(power.length, melFilters[m].length); k++) {
             energy += power[k] * melFilters[m][k];
           }
-          melEnergies[m] = log(max(energy, 1e-10));
+          melEnergies[m] = 10.0 * log(max(energy, 1e-10)) / ln10;
         }
         // DCT to get MFCCs
         final mfcc = _dctII(melEnergies, nMfcc);
@@ -522,17 +552,25 @@ class MfccExtractor {
     // 1. Read WAV
     final (rawSignal, origSr) = readWav(wavPath);
 
-    // 2. Validate duration
+    // 2. Validate & trim duration
     final duration = rawSignal.length / origSr;
-    if (duration > maxDurationSec) {
-      throw Exception('Audio too long (${duration.toStringAsFixed(1)}s)');
-    }
     if (duration < 0.05) {
       throw Exception('Audio too short');
     }
 
+    // If voice is more than 30 seconds, cut to the first 30 seconds
+    var processedRawSignal = rawSignal;
+    if (duration > maxDurationSec) {
+      final maxSamples = (maxDurationSec * origSr).toInt();
+      processedRawSignal = Float64List.sublistView(
+        rawSignal,
+        0,
+        min(maxSamples, rawSignal.length),
+      );
+    }
+
     // 3. Preprocess (exact same pipeline as training)
-    var signal = removeDcOffset(rawSignal);
+    var signal = removeDcOffset(processedRawSignal);
     signal = resample(signal, origSr, sr);
     signal = normalizeAmplitude(signal);
     signal = butterworthBandpass(signal);
@@ -566,6 +604,188 @@ class MfccExtractor {
 
     return allMfcc;
   }
+
+  // ─── Signal Quality Assessment (SQA) ───────────────────────────
+  /// Evaluates whether the audio is a valid heart sound (PCG) or random noise/clapping.
+  static AudioQualityResult evaluateAudioQuality(String wavPath) {
+    final (rawSignal, origSr) = readWav(wavPath);
+    return evaluateSignalQuality(rawSignal, origSr);
+  }
+
+  /// Analyzes raw audio signal and returns detailed quality metrics.
+  static AudioQualityResult evaluateSignalQuality(
+      Float64List rawSignal, int origSr) {
+    if (rawSignal.isEmpty) {
+      return const AudioQualityResult(
+        isValidHeartSound: false,
+        reason: 'silence',
+        lowFreqEnergyRatio: 0.0,
+        crestFactor: 0.0,
+        rms: 0.0,
+        rhythmScore: 0.0,
+      );
+    }
+
+    // If audio is more than 30 seconds, evaluate the first 30 seconds
+    var signalToCheck = rawSignal;
+    if (rawSignal.length / origSr > maxDurationSec) {
+      final maxSamples = (maxDurationSec * origSr).toInt();
+      signalToCheck = Float64List.sublistView(
+        rawSignal,
+        0,
+        min(maxSamples, rawSignal.length),
+      );
+    }
+
+    // 1. RMS and Crest Factor (Impulsiveness / Clapping Check)
+    double sumSq = 0;
+    double maxAbs = 0;
+    for (final s in signalToCheck) {
+      final absVal = s.abs();
+      if (absVal > maxAbs) maxAbs = absVal;
+      sumSq += s * s;
+    }
+    final rms = sqrt(sumSq / signalToCheck.length);
+    final crestFactor = rms > 1e-8 ? (maxAbs / rms) : 0.0;
+
+    // Check for silence / muted mic
+    if (rms < minRmsThreshold || maxAbs < 0.005) {
+      return AudioQualityResult(
+        isValidHeartSound: false,
+        reason: 'silence',
+        lowFreqEnergyRatio: 0.0,
+        crestFactor: crestFactor,
+        rms: rms,
+        rhythmScore: 0.0,
+      );
+    }
+
+    // 2. Frequency Band Energy Ratio (High vs Low Frequency)
+    double lowFreqRatio = 1.0;
+    double highFreqRatio = 0.0;
+
+    if (origSr >= 2000 && signalToCheck.length >= 1024) {
+      const fftSize = 1024;
+      final step = max(fftSize, (signalToCheck.length - fftSize) ~/ 6);
+      double totalLowEnergy = 0;
+      double totalHighEnergy = 0;
+      double totalOverallEnergy = 0;
+      int windowCount = 0;
+
+      // Hann window for quality check
+      final win = Float64List(fftSize);
+      for (int i = 0; i < fftSize; i++) {
+        win[i] = 0.5 * (1 - cos(2 * pi * i / (fftSize - 1)));
+      }
+
+      for (int start = 0;
+          start + fftSize <= signalToCheck.length;
+          start += step) {
+        final frame = List<_Complex>.filled(fftSize, _Complex.zero);
+        for (int i = 0; i < fftSize; i++) {
+          frame[i] = _Complex(signalToCheck[start + i] * win[i], 0);
+        }
+
+        final spectrum = _fft(frame);
+        for (int k = 0; k <= fftSize ~/ 2; k++) {
+          final freq = k * origSr / fftSize;
+          final power = spectrum[k].real * spectrum[k].real +
+              spectrum[k].imag * spectrum[k].imag;
+
+          totalOverallEnergy += power;
+          if (freq >= 20 && freq <= 500) {
+            totalLowEnergy += power;
+          } else if (freq >= 1000 && freq <= min(8000, origSr / 2.0)) {
+            totalHighEnergy += power;
+          }
+        }
+        windowCount++;
+      }
+
+      if (totalOverallEnergy > 1e-12 && windowCount > 0) {
+        lowFreqRatio = totalLowEnergy / totalOverallEnergy;
+        highFreqRatio = totalHighEnergy / totalOverallEnergy;
+      }
+    }
+
+    // 3. Rhythm / Periodicity Autocorrelation Check
+    // Downsample and bandpass filter to 20-480 Hz
+    var filtered = removeDcOffset(signalToCheck);
+    filtered = resample(filtered, origSr, sr);
+    filtered = normalizeAmplitude(filtered);
+    filtered = butterworthBandpass(filtered);
+
+    // Compute smoothed envelope (50ms moving average at 1000Hz)
+    const envWin = 50;
+    final env = Float64List(filtered.length);
+    double winSum = 0;
+    for (int i = 0; i < filtered.length; i++) {
+      winSum += filtered[i].abs();
+      if (i >= envWin) {
+        winSum -= filtered[i - envWin].abs();
+      }
+      env[i] = winSum / min(i + 1, envWin);
+    }
+
+    // Envelope Autocorrelation for 40-180 BPM (lags 333 to 1500 samples)
+    double rhythmScore = 0.0;
+    if (env.length > 2000) {
+      double meanEnv = 0;
+      for (final v in env) meanEnv += v;
+      meanEnv /= env.length;
+
+      double varEnv = 0;
+      for (final v in env) {
+        final diff = v - meanEnv;
+        varEnv += diff * diff;
+      }
+
+      if (varEnv > 1e-10) {
+        final minLag = 333; // ~180 BPM at 1000Hz
+        final maxLag = min(1500, env.length ~/ 2); // ~40 BPM
+
+        double maxCorr = -1.0;
+        for (int lag = minLag; lag <= maxLag; lag += 10) {
+          double sumProd = 0;
+          final n = env.length - lag;
+          for (int t = 0; t < n; t += 2) {
+            sumProd += (env[t] - meanEnv) * (env[t + lag] - meanEnv);
+          }
+          final corr = (sumProd * 2) / varEnv;
+          if (corr > maxCorr) maxCorr = corr;
+        }
+        rhythmScore = max(0.0, maxCorr);
+      }
+    } else {
+      // For short audio, use a moderate default rhythm score
+      rhythmScore = 0.25;
+    }
+
+    // 4. Decision Rule
+    String reason = 'valid';
+    bool isValid = true;
+
+    if (crestFactor > maxCrestFactor) {
+      reason = 'clapping_or_tapping';
+      isValid = false;
+    } else if (lowFreqRatio < minLowFreqEnergyRatio &&
+        highFreqRatio > maxHighFreqEnergyRatio) {
+      reason = 'high_frequency_noise';
+      isValid = false;
+    } else if (lowFreqRatio < 0.25) {
+      reason = 'high_frequency_noise';
+      isValid = false;
+    }
+
+    return AudioQualityResult(
+      isValidHeartSound: isValid,
+      reason: reason,
+      lowFreqEnergyRatio: lowFreqRatio,
+      crestFactor: crestFactor,
+      rms: rms,
+      rhythmScore: rhythmScore,
+    );
+  }
 }
 
 // ─── Complex number helper ──────────────────────────────────────
@@ -578,7 +798,7 @@ class _Complex {
   static const zero = _Complex(0, 0);
   static const one = _Complex(1, 0);
 
-  double get magnitude => sqrt(real * real + imag * imag);
+  double get magnitude => math_sqrt(real * real + imag * imag);
 
   _Complex operator +(_Complex other) =>
       _Complex(real + other.real, imag + other.imag);

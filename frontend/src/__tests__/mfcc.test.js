@@ -88,6 +88,21 @@ test('readWav decodes 16-bit stereo to mono at the file sample rate', () => {
     assert.ok(Math.abs(samples[2]) < 1e-3);
 });
 
+test('readWav decodes 32-bit float WAV', () => {
+    const values = [0.25, -0.5, 0.75];
+    const view = new DataView(new ArrayBuffer(44 + values.length * 4));
+    const tag = (o, str) => [...str].forEach((c, i) => view.setUint8(o + i, c.charCodeAt(0)));
+    tag(0, 'RIFF'); view.setUint32(4, 36 + values.length * 4, true); tag(8, 'WAVE');
+    tag(12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 3, true); // IEEE float
+    view.setUint16(22, 1, true); view.setUint32(24, 4000, true); view.setUint32(28, 16000, true);
+    view.setUint16(32, 4, true); view.setUint16(34, 32, true);
+    tag(36, 'data'); view.setUint32(40, values.length * 4, true);
+    values.forEach((v, i) => view.setFloat32(44 + i * 4, v, true));
+    const { samples, sampleRate } = readWav(view.buffer);
+    assert.equal(sampleRate, 4000);
+    assert.deepEqual(Array.from(samples), values);
+});
+
 test('readWav rejects non-WAV data', () => {
     assert.throws(() => readWav(new TextEncoder().encode('not a wav file at all').buffer));
 });

@@ -44,7 +44,11 @@ export interface DecodedAudio {
 
 // ─── WAV reading ───────────────────────────────────────────────
 
-/** Parses a PCM WAV file (16/24/32-bit) into mono samples at the file's own sample rate. */
+const WAVE_FORMAT_PCM = 1;
+const WAVE_FORMAT_IEEE_FLOAT = 3;
+const WAVE_FORMAT_EXTENSIBLE = 0xfffe;
+
+/** Parses a WAV file (8/16/24/32-bit integer PCM or 32/64-bit float) into mono samples at the file's own sample rate. */
 export function readWav(buffer: ArrayBuffer): DecodedAudio {
     const data = new DataView(buffer);
     const tag = (o: number) => String.fromCharCode(data.getUint8(o), data.getUint8(o + 1), data.getUint8(o + 2), data.getUint8(o + 3));
@@ -54,6 +58,7 @@ export function readWav(buffer: ArrayBuffer): DecodedAudio {
     }
 
     let offset = 12;
+    let format = WAVE_FORMAT_PCM;
     let sampleRate = 44100;
     let numChannels = 1;
     let bitsPerSample = 16;
@@ -64,9 +69,12 @@ export function readWav(buffer: ArrayBuffer): DecodedAudio {
         const chunkId = tag(offset);
         const chunkSize = data.getUint32(offset + 4, true);
         if (chunkId === 'fmt ') {
+            format = data.getUint16(offset + 8, true);
             numChannels = data.getUint16(offset + 10, true);
             sampleRate = data.getUint32(offset + 12, true);
             bitsPerSample = data.getUint16(offset + 22, true);
+            // WAVE_FORMAT_EXTENSIBLE stores the real format code at the start of the SubFormat GUID
+            if (format === WAVE_FORMAT_EXTENSIBLE && chunkSize >= 40) format = data.getUint16(offset + 32, true);
         } else if (chunkId === 'data') {
             dataOffset = offset + 8;
             dataSize = Math.min(chunkSize, data.byteLength - dataOffset);
@@ -76,25 +84,27 @@ export function readWav(buffer: ArrayBuffer): DecodedAudio {
     }
 
     if (dataOffset === 0) throw new Error('No data chunk found in WAV file');
-    if (![16, 24, 32].includes(bitsPerSample)) throw new Error(`Unsupported WAV bit depth: ${bitsPerSample}`);
+    const isFloat = format === WAVE_FORMAT_IEEE_FLOAT;
+    if (isFloat ? ![32, 64].includes(bitsPerSample) : format !== WAVE_FORMAT_PCM || ![8, 16, 24, 32].includes(bitsPerSample)) {
+        throw new Error(`Unsupported WAV encoding: format ${format}, ${bitsPerSample}-bit`);
+    }
 
     const bytesPerSample = bitsPerSample / 8;
     const totalFrames = Math.floor(dataSize / (bytesPerSample * numChannels));
     const mono = new Float64Array(totalFrames);
+    const readSample = (pos: number): number => {
+        if (isFloat) return bitsPerSample === 32 ? data.getFloat32(pos, true) : data.getFloat64(pos, true);
+        switch (bitsPerSample) {
+            case 8: return (data.getUint8(pos) - 128) / 128;
+            case 16: return data.getInt16(pos, true) / 32768;
+            case 24: return (data.getUint8(pos) | (data.getUint8(pos + 1) << 8) | (data.getInt8(pos + 2) << 16)) / 8388608;
+            default: return data.getInt32(pos, true) / 2147483648;
+        }
+    };
 
     for (let i = 0; i < totalFrames; i++) {
         let sum = 0;
-        for (let ch = 0; ch < numChannels; ch++) {
-            const pos = dataOffset + (i * numChannels + ch) * bytesPerSample;
-            if (bitsPerSample === 16) {
-                sum += data.getInt16(pos, true) / 32768;
-            } else if (bitsPerSample === 24) {
-                const val = data.getUint8(pos) | (data.getUint8(pos + 1) << 8) | (data.getInt8(pos + 2) << 16);
-                sum += val / 8388608;
-            } else {
-                sum += data.getInt32(pos, true) / 2147483648;
-            }
-        }
+        for (let ch = 0; ch < numChannels; ch++) sum += readSample(dataOffset + (i * numChannels + ch) * bytesPerSample);
         mono[i] = sum / numChannels;
     }
 

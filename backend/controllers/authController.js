@@ -13,10 +13,11 @@ import { getOtpEmailTemplate, getResetPasswordEmailTemplate } from '../utils/ema
 
 // Centralized cookie configuration
 const isProduction = process.env.NODE_ENV === 'production';
+// The website reaches the API through its own /api proxy (same site), so cookies never need SameSite=None
 const getCookieConfig = (maxAge) => ({
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? 'none' : 'strict',
+    sameSite: 'lax',
     maxAge
 });
 export const register = async (req, res) => {

@@ -3,17 +3,15 @@ import multer from 'multer';
 // Use memoryStorage to keep the audio in RAM temporarily
 const storage = multer.memoryStorage();
 
-// File filter to only accept audio files
+// The in-process model reads WAV (the website and app always upload WAV)
+const WAV_MIME_TYPES = ['audio/wav', 'audio/wave', 'audio/x-wav', 'audio/vnd.wave'];
+
 const fileFilter = (req, file, cb) => {
-    const allowedMimeTypes = [
-        'audio/wav', 'audio/wave', 'audio/x-wav',
-        'audio/webm', 'audio/ogg', 'audio/mpeg',
-        'audio/mp3', 'audio/flac'
-    ];
-    if (allowedMimeTypes.includes(file.mimetype)) {
+    const isWav = WAV_MIME_TYPES.includes(file.mimetype) || file.originalname?.toLowerCase().endsWith('.wav');
+    if (isWav) {
         cb(null, true);
     } else {
-        cb(new Error('Invalid file type. Only audio files are allowed.'), false);
+        cb(Object.assign(new Error('Invalid file type. Only WAV audio files are allowed.'), { statusCode: 400 }), false);
     }
 };
 

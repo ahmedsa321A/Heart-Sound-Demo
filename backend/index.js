@@ -3,12 +3,20 @@ import cookieParser from 'cookie-parser';
 import express from 'express';
 import dbConnection from './DB/db.connection.js';
 import cors from 'cors';
+import { warmUpModel } from './Services/inference/heartModel.js';
 
 const app = express();
 
-// Cross-Origin Resource Sharing (CORS) - Allows web app, mobile app, local IPs, and cross-origin requests
+// Behind Render's load balancer (and Vercel's /api proxy): trust that many hops so the rate limiter
+// sees each user's real IP instead of the proxy's.
+app.set('trust proxy', Number(process.env.TRUST_PROXY ?? 1));
+
+// CORS: only the website's origin(s) may make credentialed requests. Requests without an Origin
+// header (mobile app, server-to-server, same-origin via the Vercel proxy) are unaffected.
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
+    .split(',').map((o) => o.trim()).filter(Boolean);
 app.use(cors({
-    origin: true,
+    origin: (origin, cb) => cb(null, !origin || allowedOrigins.includes(origin)),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
@@ -19,7 +27,7 @@ app.use(express.json());
 
 dbConnection();
 
-// Health check endpoint for Azure probes
+// Health check endpoint for the host's probes
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
@@ -45,4 +53,7 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
+    warmUpModel()
+        .then(() => console.log('Heart sound model loaded'))
+        .catch((err) => console.error('Failed to load heart sound model:', err));
 });

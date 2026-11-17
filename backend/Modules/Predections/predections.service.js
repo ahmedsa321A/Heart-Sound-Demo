@@ -1,7 +1,6 @@
 import Prediction from '../../DB/predections.model.js';
 import User from '../../DB/User.js';
-import aiClient from '../../Services/aiClient.js';
-import FormData from 'form-data';
+import { predictHeartSound, InvalidAudioError } from '../../Services/inference/heartModel.js';
 import { bucket } from '../../DB/db.connection.js';
 
 
@@ -17,40 +16,34 @@ export const createPrediction = async (req, res) => {
 
         const audioBuffer = req.file.buffer;
 
-        // 1. Save the Raw Audio to GridFS in the background
-        // We do this manually now since we are using memoryStorage
+        // 1. Run the model in-process (same pipeline as the former Python ai-service)
+        const result = await predictHeartSound(audioBuffer);
+
+        // 2. Store the raw audio in GridFS
         const uploadStream = bucket.openUploadStream(req.file.originalname, {
             contentType: req.file.mimetype || 'audio/wav'
         });
-        uploadStream.end(audioBuffer);
-        const audioId = uploadStream.id;
-
-        // 2. Prepare to send to Python FastAPI directly from RAM
-        const form = new FormData();
-        // We pass the buffer directly - no need to download from GridFS!
-        form.append('file', audioBuffer, {
-            filename: req.file.originalname,
-            contentType: req.file.mimetype || 'audio/wav'
+        await new Promise((resolve, reject) => {
+            uploadStream.on('finish', resolve).on('error', reject);
+            uploadStream.end(audioBuffer);
         });
 
-        // 3. Call the Python AI Service
-        const aiResponse = await aiClient.post('/predict', form, {
-            headers: form.getHeaders(),
-        });
-
-        // 4. Save the AI result to your "Predictions Table"
+        // 3. Save the prediction
         const newPrediction = new Prediction({
             userId,
-            audioId, // This is the ID from the uploadStream above
-            predictionResult: aiResponse.data.predictionResult,
-            predictionScore: aiResponse.data.predictionScore
+            audioId: uploadStream.id,
+            predictionResult: result.predictionResult,
+            predictionScore: result.predictionScore
         });
 
         await newPrediction.save();
 
         res.status(201).json(newPrediction);
     } catch (error) {
-        const errorDetail = error.response?.data?.detail || error.message;
+        if (error instanceof InvalidAudioError) {
+            return res.status(400).json({ message: 'Invalid audio file', detail: error.message });
+        }
+        const errorDetail = error.message;
         console.error('AI Service Error details:', errorDetail);
         res.status(500).json({
             message: 'AI Service Error',

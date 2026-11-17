@@ -5,6 +5,7 @@ services:
     name: heartai-api
     runtime: node
     plan: free
+    region: frankfurt      # same region as the MongoDB Atlas cluster (AWS eu-central-1)
     rootDir: backend
     buildCommand: npm ci
     startCommand: npm start

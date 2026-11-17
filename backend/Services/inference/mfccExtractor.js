@@ -473,6 +473,7 @@ export {
   butterworthBandpass,
   evaluateSignalQuality,
   extractMfcc,
+  fft,
   medianFilter,
   normalizeAmplitude,
   processAudio,

@@ -1,7 +1,5 @@
-import { readFile } from 'node:fs/promises';
-import * as tf from '@tensorflow/tfjs-core';
-import '@tensorflow/tfjs-backend-cpu';
-import * as tfl from '@tensorflow/tfjs-layers';
+import { tf, loadLocalModel } from './tfRuntime.js';
+import { classifySound, warmUpSoundClassifier } from './soundClassifier.js';
 import {
     readWav,
     evaluateSignalQuality,
@@ -21,18 +19,7 @@ const MODEL_DIR = new URL('./model/', import.meta.url);
 let modelPromise = null;
 
 function loadModel() {
-    modelPromise ??= (async () => {
-        await tf.setBackend('cpu');
-        const [modelJson, weights] = await Promise.all([
-            readFile(new URL('model.json', MODEL_DIR), 'utf8').then(JSON.parse),
-            readFile(new URL('weights.bin', MODEL_DIR)),
-        ]);
-        return tfl.loadLayersModel(tf.io.fromMemory({
-            modelTopology: modelJson.modelTopology,
-            weightSpecs: modelJson.weightsManifest[0].weights,
-            weightData: weights.buffer.slice(weights.byteOffset, weights.byteOffset + weights.byteLength),
-        }));
-    })().catch((error) => {
+    modelPromise ??= loadLocalModel(MODEL_DIR).catch((error) => {
         modelPromise = null;
         throw error;
     });
@@ -70,6 +57,12 @@ export async function predictHeartSound(audio) {
         return { predictionResult: 'Noise', predictionScore: 0, qualityReason: quality.reason };
     }
 
+    // 1b. Sound recognition: reject music and speech (YAMNet)
+    const sound = await classifySound(audio);
+    if (!sound.isHeartLike) {
+        return { predictionResult: 'Noise', predictionScore: 0, qualityReason: sound.reason };
+    }
+
     // 2. MFCC features per segment → batch (segments, 32, 40, 1)
     const segments = processAudio(audio);
     const input = new Float32Array(segments.length * MAX_TIME_STEPS * N_MFCC);
@@ -87,5 +80,5 @@ export async function predictHeartSound(audio) {
     };
 }
 
-/** Loads the model ahead of the first request so it doesn't slow the first analysis. */
-export const warmUpModel = () => loadModel();
+/** Loads both models ahead of the first request so they don't slow the first analysis. */
+export const warmUpModel = () => Promise.all([loadModel(), warmUpSoundClassifier()]);

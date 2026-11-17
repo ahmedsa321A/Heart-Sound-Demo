@@ -366,7 +366,7 @@ export function segment(signal: Float64Array, sampleRate = SR, segSec = SEGMENT_
 
 // ─── FFT (in-place iterative radix-2) ─────────────────────────
 
-function fft(re: Float64Array, im: Float64Array): void {
+export function fft(re: Float64Array, im: Float64Array): void {
     const n = re.length;
     for (let i = 0, j = 0; i < n; i++) {
         if (i < j) {

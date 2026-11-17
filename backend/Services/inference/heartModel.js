@@ -42,10 +42,11 @@ function loadModel() {
 export class InvalidAudioError extends Error {}
 
 /**
- * @param {Buffer} wavBuffer - uploaded WAV file
- * @returns {Promise<{predictionResult: 'Normal'|'Abnormal'|'Noise', predictionScore: number, qualityReason?: string}>}
+ * Decodes an uploaded WAV file into mono samples.
+ * @param {Buffer} wavBuffer
+ * @returns {{samples: Float64Array, sampleRate: number}}
  */
-export async function predictHeartSound(wavBuffer) {
+export function decodeUpload(wavBuffer) {
     let audio;
     try {
         audio = readWav(wavBuffer.buffer.slice(wavBuffer.byteOffset, wavBuffer.byteOffset + wavBuffer.byteLength));
@@ -55,7 +56,14 @@ export async function predictHeartSound(wavBuffer) {
     if (audio.samples.length / audio.sampleRate < 0.05) {
         throw new InvalidAudioError('Audio file is empty or invalid. Please record audio for at least 1 second.');
     }
+    return audio;
+}
 
+/**
+ * @param {{samples: Float64Array, sampleRate: number}} audio - from decodeUpload()
+ * @returns {Promise<{predictionResult: 'Normal'|'Abnormal'|'Noise', predictionScore: number, qualityReason?: string}>}
+ */
+export async function predictHeartSound(audio) {
     // 1. Quality gate (silence / clapping / high-frequency noise)
     const quality = evaluateSignalQuality(audio.samples, audio.sampleRate);
     if (!quality.isValidHeartSound) {

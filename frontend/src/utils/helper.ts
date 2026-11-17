@@ -94,18 +94,21 @@ export interface RegisterStep2Props {
     hypertension?: string;
     diabetes?: string;
     renalPathologies?: string;
+    acceptTerms?: boolean;
 }
 
 export const validateRegisterStep2 = ({
     familyHistory,
     hypertension,
     diabetes,
-    renalPathologies
+    renalPathologies,
+    acceptTerms
 }: RegisterStep2Props, errors: AuthErrors, t: (key: string) => string) => {
     if (!familyHistory) errors.familyHistory = t('validation.familyHistoryRequired');
     if (!hypertension) errors.hypertension = t('validation.hypertensionRequired');
     if (!diabetes) errors.diabetes = t('validation.diabetesRequired');
     if (!renalPathologies) errors.renalPathologies = t('validation.renalPathologiesRequired');
+    if (!acceptTerms) errors.acceptTerms = t('validation.termsRequired');
 };
 
 export interface ProfileUpdateProps {

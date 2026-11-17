@@ -1,6 +1,8 @@
 import Prediction from '../../DB/predections.model.js';
 import User from '../../DB/User.js';
-import { predictHeartSound, InvalidAudioError } from '../../Services/inference/heartModel.js';
+import mongoose from 'mongoose';
+import { decodeUpload, predictHeartSound, InvalidAudioError } from '../../Services/inference/heartModel.js';
+import { toStorageWav } from '../../Services/audioStorage.js';
 import { bucket } from '../../DB/db.connection.js';
 
 
@@ -14,18 +16,25 @@ export const createPrediction = async (req, res) => {
             return res.status(400).json({ message: 'No audio file provided' });
         }
 
-        const audioBuffer = req.file.buffer;
-
         // 1. Run the model in-process (same pipeline as the former Python ai-service)
-        const result = await predictHeartSound(audioBuffer);
+        const audio = decodeUpload(req.file.buffer);
+        const result = await predictHeartSound(audio);
 
-        // 2. Store the raw audio in GridFS
-        const uploadStream = bucket.openUploadStream(req.file.originalname, {
-            contentType: req.file.mimetype || 'audio/wav'
+        // 2. Store a compact copy (mono, 4 kHz, first 30 s) in GridFS for future training,
+        //    as agreed in the Terms & Privacy Policy at signup
+        const stored = toStorageWav(audio);
+        const uploadStream = bucket.openUploadStream(`${userId}-${Date.now()}.wav`, {
+            contentType: 'audio/wav',
+            metadata: {
+                sampleRate: stored.sampleRate,
+                durationSec: stored.durationSec,
+                originalSampleRate: audio.sampleRate,
+                originalSize: req.file.size
+            }
         });
         await new Promise((resolve, reject) => {
             uploadStream.on('finish', resolve).on('error', reject);
-            uploadStream.end(audioBuffer);
+            uploadStream.end(stored.wav);
         });
 
         // 3. Save the prediction
@@ -78,6 +87,36 @@ export const getDashboardStats = async (req, res) => {
         });
     } catch (error) {
         console.error('Error fetching dashboard stats:', error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
+
+// Saves the optional answers the user gave before seeing the result, or records that they skipped.
+export const setPredictionLabels = async (req, res) => {
+    try {
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(404).json({ message: 'Prediction not found' });
+        }
+        const prediction = await Prediction.findOne({ _id: req.params.id, userId: req.user._id });
+        if (!prediction) {
+            return res.status(404).json({ message: 'Prediction not found' });
+        }
+
+        if (req.body.skipped === true) {
+            prediction.labels = undefined;
+            prediction.labelStatus = 'skipped';
+        } else {
+            const { diagnosedByDoctor, conditions, otherCondition, diagnosisMethod, chestLocation, device } = req.body.labels || {};
+            prediction.labels = { diagnosedByDoctor, conditions, otherCondition, diagnosisMethod, chestLocation, device };
+            prediction.labelStatus = 'submitted';
+        }
+        prediction.labeledAt = new Date();
+        await prediction.save();
+
+        res.status(200).json({ labelStatus: prediction.labelStatus });
+    } catch (error) {
+        console.error('Error saving labels:', error);
         res.status(500).json({ message: 'Server Error' });
     }
 };

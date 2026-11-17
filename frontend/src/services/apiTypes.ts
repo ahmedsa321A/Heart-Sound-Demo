@@ -16,6 +16,7 @@ export interface RegisterData {
     diabetes: string;
     renalPathologies: string;
     chronicCardiac?: string[];
+    acceptTerms?: boolean;
 }
 
 export interface LoginCredentials {

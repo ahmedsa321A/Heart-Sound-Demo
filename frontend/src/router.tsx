@@ -10,6 +10,7 @@ import { VerifyOTPPage } from '@/pages/VerifyOTPPage';
 import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
 import { Dashboard } from '@/pages/Dashboard';
 import { ProfilePage } from '@/pages/ProfilePage';
+import { TermsPage } from '@/pages/TermsPage';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { PublicRoute } from '@/components/PublicRoute';
 
@@ -64,6 +65,11 @@ export const router = createBrowserRouter([
                         element: <ProfilePage />,
                     },
                 ],
+            },
+            {
+                // Public for everyone, signed in or not
+                path: "terms",
+                element: <TermsPage />,
             },
             {
                 path: "*",

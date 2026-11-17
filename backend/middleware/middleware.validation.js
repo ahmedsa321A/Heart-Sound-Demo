@@ -1,5 +1,6 @@
 
 import { body, validationResult } from 'express-validator';
+import { LABEL_OPTIONS } from '../utils/labels.js';
 
 const validate = (req, res, next) => {
     const errors = validationResult(req);
@@ -15,6 +16,7 @@ export const registerValidation = [
     body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
     body('age').isNumeric().withMessage('Age must be a number'),
     body('gender').isIn(['male', 'female']).withMessage('Gender must be male or female'),
+    body('acceptTerms').custom((value) => value === true).withMessage('You must accept the Terms & Privacy Policy'),
     validate
 ];
 
@@ -49,5 +51,19 @@ export const changePasswordValidation = [
         }
         return true;
     }),
+    validate
+];
+
+// Optional answers before the result: either { skipped: true } or { labels: {...} }, every field optional
+export const predictionLabelsValidation = [
+    body('skipped').optional().isBoolean({ strict: true }),
+    body('labels').optional().isObject(),
+    body('labels.diagnosedByDoctor').optional().isIn(LABEL_OPTIONS.diagnosedByDoctor),
+    body('labels.conditions').optional().isArray({ max: LABEL_OPTIONS.conditions.length }),
+    body('labels.conditions.*').isIn(LABEL_OPTIONS.conditions),
+    body('labels.otherCondition').optional().isString().trim().isLength({ max: 200 }),
+    body('labels.diagnosisMethod').optional().isIn(LABEL_OPTIONS.diagnosisMethod),
+    body('labels.chestLocation').optional().isIn(LABEL_OPTIONS.chestLocation),
+    body('labels.device').optional().isIn(LABEL_OPTIONS.device),
     validate
 ];

@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Activity, ChevronRight, FlaskConical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -138,6 +138,10 @@ export function LandingPage() {
                     </motion.div>
                 </div>
             </main>
+
+            <footer className="border-t border-gray-100 py-6 text-center text-sm text-gray-500">
+                <Link to="/terms" className="hover:text-cyan-700 underline">{t('terms.footerLink')}</Link>
+            </footer>
         </div>
     );
 }

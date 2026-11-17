@@ -58,7 +58,8 @@
         "uploadSound": "Upload Sound File",
         "noiseResult": "Noise / No Heart Sound",
         "noiseDetected": "Noise Detected",
-        "invalidFileType": "Please select a .wav audio file."
+        "invalidFileType": "Please select a .wav audio file.",
+        "disclaimer": "This is an AI screening result, not a medical diagnosis, and it can be wrong. Please consult a doctor. In an emergency, call your local emergency number (123 in Egypt)."
     },
     "auth": {
         "createAccount": "Create Account",
@@ -190,7 +191,8 @@
         "newPasswordLength": "New password must be at least 8 characters long",
         "samePassword": "New password must be different from current password",
         "userNotFound": "User not found",
-        "currentPasswordIncorrect": "Current password is incorrect"
+        "currentPasswordIncorrect": "Current password is incorrect",
+        "termsRequired": "Please accept the Terms & Privacy Policy to create your account"
     },
     "audio": {
         "analysisDetails": "Heart sound analysis detected {{result}}",
@@ -211,5 +213,65 @@
         "micAccessError": "Error accessing microphone. Please try again.",
         "failedToSave": "Failed to save audio recording.",
         "recordingTooShort": "Recording is too short. Please record for at least 1 second."
+    },
+    "terms": {
+        "consent": "I have read and agree to the <termsLink>Terms & Privacy Policy</termsLink>, including the analysis of my heart recordings and the use of my de-identified recordings and answers to train HeartAI. I understand HeartAI does not give a medical diagnosis.",
+        "close": "Close",
+        "agree": "I agree",
+        "footerLink": "Terms & Privacy Policy"
+    },
+    "labels": {
+        "title": "Help us improve HeartAI (optional)",
+        "subtitle": "While we analyze your recording, tell us a little more. Your answers help train more accurate models. You can skip.",
+        "analyzingInBackground": "Analyzing your recording in the background…",
+        "analysisReady": "Your result is ready — answer or skip to see it",
+        "skip": "Skip",
+        "submit": "Submit & see result",
+        "otherPlaceholder": "Which condition?",
+        "diagramRight": "R",
+        "diagramLeft": "L",
+        "q": {
+            "diagnosed": "Has a doctor diagnosed you with a heart condition?",
+            "conditions": "Which condition(s)?",
+            "method": "How was it diagnosed?",
+            "location": "Where on your chest did you record?",
+            "device": "What did you record with?"
+        },
+        "answers": {
+            "yes": "Yes",
+            "no": "No",
+            "not_sure": "Not sure"
+        },
+        "conditions": {
+            "murmur": "Heart murmur",
+            "aortic_stenosis": "Aortic stenosis",
+            "mitral_regurgitation": "Mitral regurgitation",
+            "mitral_stenosis": "Mitral stenosis",
+            "mitral_valve_prolapse": "Mitral valve prolapse",
+            "arrhythmia": "Arrhythmia (e.g. atrial fibrillation)",
+            "heart_failure": "Heart failure",
+            "coronary_artery_disease": "Coronary artery disease / past heart attack",
+            "congenital": "Congenital heart disease",
+            "valve_surgery": "Valve replacement or heart surgery",
+            "other": "Other"
+        },
+        "methods": {
+            "echo": "Echocardiogram (heart ultrasound)",
+            "ecg": "ECG",
+            "stethoscope": "Doctor listened with a stethoscope",
+            "not_sure": "Not sure"
+        },
+        "locations": {
+            "aortic": "Aortic — upper chest, right of the breastbone",
+            "pulmonic": "Pulmonic — upper chest, left of the breastbone",
+            "tricuspid": "Tricuspid — lower left edge of the breastbone",
+            "mitral": "Mitral — below the left nipple (heart tip)",
+            "not_sure": "Not sure"
+        },
+        "devices": {
+            "phone": "Phone microphone",
+            "stethoscope": "Digital stethoscope",
+            "other": "Other"
+        }
     }
 }

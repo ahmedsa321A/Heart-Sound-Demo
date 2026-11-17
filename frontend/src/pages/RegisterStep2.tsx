@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-import { ChevronLeft } from 'lucide-react';
+import { useTranslation, Trans } from 'react-i18next';
+import { ChevronLeft, Check } from 'lucide-react';
 import { AuthLayout } from '@/components/layout/auth-layout';
 import { Button } from '@/components/ui/button';
 import { useAppDispatch, useAppSelector } from '@/store';
@@ -13,6 +13,7 @@ import AlertCard from '@/components/ui/alert-card';
 import { FormRadioGroup } from '@/components/ui/form-radio-group';
 import { FormCheckboxGroup } from '@/components/ui/form-checkbox-group';
 import { validateRegisterStep2, AuthErrors, getTranslatedMessage } from '@/utils/helper';
+import { TermsDialog } from '@/components/legal/terms-dialog';
 
 export function RegisterStep2() {
     const navigate = useNavigate();
@@ -32,7 +33,16 @@ export function RegisterStep2() {
         diabetes: registrationData?.diabetes || '',
         chronicCardiac: registrationData?.chronicCardiac || [],
         renalPathologies: registrationData?.renalPathologies || '',
+        acceptTerms: registrationData?.acceptTerms || false,
     });
+    const [termsOpen, setTermsOpen] = useState(false);
+
+    const setAcceptTerms = (acceptTerms: boolean) => {
+        setFormData(prev => ({ ...prev, acceptTerms }));
+        if (acceptTerms && errors.acceptTerms) {
+            setErrors(prev => ({ ...prev, acceptTerms: undefined }));
+        }
+    };
     const [errors, setErrors] = useState<AuthErrors>({});
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -185,6 +195,46 @@ export function RegisterStep2() {
                     error={errors.renalPathologies}
                     required
                 />
+
+                {/* Consent: Terms & Privacy Policy (analysis + de-identified training use + medical disclaimer) */}
+                <div>
+                    <label
+                        className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-colors ${
+                            formData.acceptTerms ? 'border-cyan-600 bg-cyan-50' : errors.acceptTerms ? 'border-red-500' : 'border-gray-300 hover:border-cyan-500'
+                        }`}
+                    >
+                        <input
+                            type="checkbox"
+                            checked={formData.acceptTerms}
+                            onChange={(e) => setAcceptTerms(e.target.checked)}
+                            className="sr-only"
+                        />
+                        <span
+                            className={`mt-0.5 w-6 h-6 shrink-0 border-2 rounded-md flex items-center justify-center transition-colors ${
+                                formData.acceptTerms ? 'bg-cyan-600 border-cyan-600' : 'border-gray-300'
+                            }`}
+                        >
+                            {formData.acceptTerms && <Check className="w-4 h-4 text-white" />}
+                        </span>
+                        <span className="text-sm text-gray-700 leading-relaxed">
+                            <Trans
+                                i18nKey="terms.consent"
+                                components={{
+                                    termsLink: (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => { e.preventDefault(); setTermsOpen(true); }}
+                                            className="text-cyan-700 font-semibold underline hover:text-cyan-800 cursor-pointer"
+                                        />
+                                    ),
+                                }}
+                            />
+                        </span>
+                    </label>
+                    {errors.acceptTerms && <p className="text-red-500 text-sm mt-1">{errors.acceptTerms}</p>}
+                </div>
+
+                <TermsDialog open={termsOpen} onOpenChange={setTermsOpen} onAccept={() => setAcceptTerms(true)} />
 
                 <div className="flex gap-4 pt-4">
                     <Button

@@ -22,8 +22,12 @@ const UserSchema = new mongoose.Schema({
     resetToken: String,
     resetTokenExpires: Date,
 
-
-
+    // Consent given at signup: Terms & Privacy Policy, which include analysis and
+    // de-identified use of recordings for training the model
+    consent: {
+        termsVersion: String,
+        acceptedAt: Date
+    },
 
     createdAt: { type: Date, default: Date.now }
 });

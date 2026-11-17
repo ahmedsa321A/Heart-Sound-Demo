@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Mic, Square, Loader, CheckCircle, AlertCircle, Activity, Eye, Upload, AudioWaveform } from 'lucide-react';
+import { Mic, Square, Loader, CheckCircle, AlertCircle, Activity, Eye, Upload, AudioWaveform, Info } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Button } from '@/components/ui/button';
 import { useAppDispatch, useAppSelector } from '@/store';
@@ -15,6 +15,9 @@ import { demoHistoryService } from '@/services/demo/demoHistoryService';
 import { HistoryItem, HistoryStatus, AnalysisResponse, DashboardStatsResponse } from '@/services/apiTypes';
 import { buildAnalysisReport, toHistoryStatus } from '@/utils/analysisReport';
 import { isDemoMode, MAX_RECORDING_SECONDS } from '@/config';
+import { LabelQuestionnaire } from '@/components/dashboard/label-questionnaire';
+import { labelService } from '@/services/labelService';
+import { LabelSubmission } from '@/content/labelOptions';
 import {
     Dialog,
     DialogContent,
@@ -98,9 +101,24 @@ export function Dashboard() {
     const [statsData, setStatsData] = useState<DashboardStatsResponse | null>(null);
     const [selectedReport, setSelectedReport] = useState<AnalysisResponse | null>(null);
     const resultUi = analysisResult && RESULT_UI[toHistoryStatus(analysisResult.diagnosis)];
+
+    // Optional questions shown while the analysis runs, before the result (not in demo mode)
+    const [labelStep, setLabelStep] = useState<'idle' | 'asking' | 'done'>('idle');
+    const [pendingLabels, setPendingLabels] = useState<LabelSubmission | null>(null);
+    const askingLabels = labelStep === 'asking' && (status === 'analyzing' || status === 'complete');
+
+    // Answers can come in before the prediction exists; send them once its id is known
+    useEffect(() => {
+        if (!pendingLabels || status !== 'complete' || !analysisResult?.id) return;
+        labelService.submit(analysisResult.id, pendingLabels)
+            .catch((err) => console.error('Failed to save recording answers', err));
+        setPendingLabels(null);
+    }, [pendingLabels, status, analysisResult]);
     const reportUi = selectedReport && RESULT_UI[toHistoryStatus(selectedReport.diagnosis)];
 
     useEffect(() => {
+        // Don't refresh history while the optional questions are open — it would reveal the result
+        if (askingLabels) return;
         const fetchStats = async () => {
             try {
                 const data = await statsService.getDashboardStats();
@@ -110,7 +128,7 @@ export function Dashboard() {
             }
         };
         fetchStats();
-    }, [status]); 
+    }, [status, askingLabels]);
 
     const generateReportFromHistory = (item: HistoryItem): AnalysisResponse => buildAnalysisReport({
         id: item.id,
@@ -199,6 +217,8 @@ export function Dashboard() {
             // Fetch the blob from the object URL
             const response = await fetch(audioUrl);
             const blob = await response.blob();
+            setPendingLabels(null);
+            setLabelStep(isDemoMode ? 'done' : 'asking');
             dispatch(analyzeAudio(blob));
         } catch (err) {
             dispatch(setRecordingError('Failed to prepare audio for upload'));
@@ -223,6 +243,8 @@ export function Dashboard() {
         if (audioUrl) {
             URL.revokeObjectURL(audioUrl);
         }
+        setLabelStep('idle');
+        setPendingLabels(null);
         dispatch(resetRecording());
     };
 
@@ -369,7 +391,17 @@ export function Dashboard() {
                             </div>
                         )}
 
-                        {status === 'analyzing' && (
+                        {askingLabels && (
+                            <LabelQuestionnaire
+                                analysisReady={status === 'complete'}
+                                onDone={(submission) => {
+                                    setPendingLabels(submission);
+                                    setLabelStep('done');
+                                }}
+                            />
+                        )}
+
+                        {status === 'analyzing' && !askingLabels && (
                             <div className="text-center py-12">
                                 <Loader className="w-16 h-16 text-cyan-600 animate-spin mx-auto mb-4" />
                                 <h3 className="text-2xl font-bold text-gray-900 mb-2">{t('dashboard.analyzing')}</h3>
@@ -377,15 +409,16 @@ export function Dashboard() {
                             </div>
                         )}
 
-                        {status === 'complete' && analysisResult && resultUi && (
+                        {status === 'complete' && !askingLabels && analysisResult && resultUi && (
                             <div className="text-center py-8">
                                 <div className={`w-20 h-20 ${resultUi.iconBg} rounded-full flex items-center justify-center mx-auto mb-4`}>
                                     <resultUi.Icon className={`w-12 h-12 ${resultUi.iconColor}`} />
                                 </div>
                                 <h3 className="text-2xl font-bold text-gray-900 mb-2">{t(resultUi.titleKey)}</h3>
-                                <p className="text-gray-600 mb-6">
+                                <p className="text-gray-600 mb-4">
                                     {analysisResult.details}
                                 </p>
+                                <MedicalDisclaimer className="mb-6 max-w-md mx-auto" />
 
                                 <div className="flex gap-4 justify-center">
                                     <Button variant="outline" onClick={handleReset} className="px-6 py-6 rounded-xl cursor-pointer">
@@ -510,12 +543,24 @@ export function Dashboard() {
                                         </ul>
                                     </div>
                                 )}
+
+                                <MedicalDisclaimer />
                             </div>
                         </>
                     )}
                 </DialogContent>
             </Dialog>
         </DashboardLayout>
+    );
+}
+
+function MedicalDisclaimer({ className = '' }: { className?: string }) {
+    const { t } = useTranslation();
+    return (
+        <p className={`flex gap-2 items-start text-xs text-gray-500 text-start bg-gray-50 border border-gray-100 rounded-lg p-3 ${className}`}>
+            <Info className="w-4 h-4 shrink-0 mt-0.5" />
+            {t('dashboard.disclaimer')}
+        </p>
     );
 }
 

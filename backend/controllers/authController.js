@@ -10,6 +10,7 @@ import RefreshToken from '../DB/refreshToken.model.js';
 import { hashToken } from '../utils/hashToken.utils.js';
 import BlacklistedToken from '../DB/blackListToken.model.js';
 import { getOtpEmailTemplate, getResetPasswordEmailTemplate } from '../utils/emailTemplates.js';
+import { TERMS_VERSION } from '../utils/legal.js';
 
 // Centralized cookie configuration
 const isProduction = process.env.NODE_ENV === 'production';
@@ -55,6 +56,8 @@ export const register = async (req, res) => {
             user.password = password;
             user.fullName = fullName;
         }
+        // Validation guarantees acceptTerms === true
+        user.consent = { termsVersion: TERMS_VERSION, acceptedAt: new Date() };
 
         await user.save();
 

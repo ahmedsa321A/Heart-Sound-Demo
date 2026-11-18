@@ -5,3 +5,5 @@ venv/
 .venv/
 __pycache__/
 *.pyc
+# Local datasets (large, licensed separately) — never commit
+HeartWave_dataset_raw/

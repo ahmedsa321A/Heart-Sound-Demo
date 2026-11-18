@@ -18,8 +18,8 @@ export const N_FFT = 512;
 export const WIN_LENGTH = 256;
 export const HOP_LENGTH = 64;
 export const MAX_TIME_STEPS = 32;
-// Decision cutoff of the fine-tuned model, chosen on validation data (max sensitivity + specificity)
-export const OPTIMAL_THRESHOLD = 0.4766;
+// Decision cutoff of the fine-tuned model, chosen on validation data to keep the previous model's sensitivity
+export const OPTIMAL_THRESHOLD = 0.506;
 export const MAX_DURATION_SEC = 30;
 
 // Quality gate thresholds — tuned on 190 real heart recordings (CirCor 2022, PhysioNet 2016) and

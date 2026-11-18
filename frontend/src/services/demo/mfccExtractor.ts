@@ -5,7 +5,7 @@
  * browser computes the same features the model was trained on. All parameters MUST match training:
  *   SR=1000, N_MFCC=40, N_MELS=40, N_FFT=512, WIN_LENGTH=256,
  *   HOP_LENGTH=64, MAX_TIME_STEPS=32, SEGMENT_SEC=2.0, OVERLAP=0.5,
- *   BANDPASS=[20,480]Hz order=4, THRESHOLD=0.58
+ *   BANDPASS=[20,480]Hz order=4 (decision threshold: OPTIMAL_THRESHOLD below)
  * Kept in sync with mobile/lib/services/demo/mfcc_extractor.dart.
  */
 
@@ -18,7 +18,8 @@ export const N_FFT = 512;
 export const WIN_LENGTH = 256;
 export const HOP_LENGTH = 64;
 export const MAX_TIME_STEPS = 32;
-export const OPTIMAL_THRESHOLD = 0.58;
+// Decision cutoff of the fine-tuned model, chosen on validation data (max sensitivity + specificity)
+export const OPTIMAL_THRESHOLD = 0.4766;
 export const MAX_DURATION_SEC = 30;
 
 // Quality gate thresholds — tuned on 190 real heart recordings (CirCor 2022, PhysioNet 2016) and

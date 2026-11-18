@@ -1,6 +1,6 @@
 {
  "format": "layers-model",
- "generatedBy": "export_tfjs_model.py",
+ "generatedBy": "Fine-tuned (PyTorch) on PhysioNet 2016 + CirCor 2022 + Yaseen 2018 with phone simulation; see MODEL_CARD.md",
  "convertedBy": null,
  "modelTopology": {
   "class_name": "Sequential",

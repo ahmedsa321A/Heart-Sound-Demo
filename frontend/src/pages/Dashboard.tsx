@@ -155,7 +155,11 @@ export function Dashboard() {
 
     const handleStart = async () => {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            // Record raw audio: the browser's voice-call processing (noise suppression, echo cancellation,
+            // automatic gain) treats the low, steady heartbeat as background noise and removes it
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 },
+            });
             streamRef.current = stream;
 
             const mimeType = MediaRecorder.isTypeSupported('audio/webm')
